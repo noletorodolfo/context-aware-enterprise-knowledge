@@ -9,7 +9,7 @@ Definition of done: see the spec, section 5.
 | 1   | Azure Functions Core Tools installed             | Local        | ✅     |
 | 2   | Function App provisioned (`envs/dev`)            | Subscription | ✅     |
 | 3   | API deployed, `401` without / with foreign token | Azure        | ✅     |
-| 4   | SPFx package built                               | Local        | ⬜     |
+| 4   | SPFx package built                               | Local        | ✅     |
 | 5   | Package uploaded, API access approved            | SharePoint   | ⬜     |
 | 6   | App added to the demo site only                  | SharePoint   | ⬜     |
 | 7   | Acceptance tests with users A and B              | SharePoint   | ⬜     |
@@ -71,6 +71,19 @@ to `host.json` in `deploy/` before publishing:
 This file is only used by the CLI for local detection; it is not required by
 the deployed app (all required settings are Terraform-managed on the Function
 App resource itself).
+
+## Build the SPFx package
+
+From `apps/spfx-assistant`:
+
+```powershell
+npm run elements
+npm run build
+```
+
+`npm run build` runs `heft test --clean --production` followed by
+`heft package-solution --production` and produces
+`sharepoint/solution/spfx-assistant.sppkg` (confirmed non-empty, ~38 KB).
 
 ## Verify
 
