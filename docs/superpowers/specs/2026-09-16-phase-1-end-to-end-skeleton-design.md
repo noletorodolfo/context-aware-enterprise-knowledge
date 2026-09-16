@@ -1,7 +1,7 @@
 # Phase 1 — End-to-end skeleton: design
 
 - **Status:** approved (2026-09-16)
-- **Scope:** `docs/PLANO.md`, section 11, Phase 1
+- **Scope:** `docs/PLAN.md`, section 11, Phase 1
 - **Goal:** on the real SharePoint demo site, a user clicks a floating button, asks a question and
   receives an authenticated **mock** answer. Without a valid token the API returns `401`.
 
@@ -87,7 +87,7 @@ OpenTelemetry, deployment pipeline.
 | Token acquisition fails (API access not approved)             | —                                         | "Assistente não configurado neste site."                                    |
 
 Rules: question and answer text are **never** logged — only length, duration, status and correlation
-id (PLANO section 5). The panel never hangs: every failure ends in an error state with "Tentar de novo".
+id (PLAN section 5). The panel never hangs: every failure ends in an error state with "Tentar de novo".
 
 ## 5. Testing
 

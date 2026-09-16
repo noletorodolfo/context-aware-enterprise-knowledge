@@ -1,10 +1,10 @@
-# Identidade do projeto no Entra ID:
-# - app registration da Knowledge API (expõe o scope chamado pelo SPFx);
-# - grupos de segurança que definem quem lê cada biblioteca da demo.
+# Project identity in Entra ID:
+# - Knowledge API app registration (exposes the scope called by the SPFx);
+# - security groups that define who can read each demo library.
 #
-# O SPFx NÃO tem app registration própria: o AadHttpClient usa o principal
-# "SharePoint Online Client Extensibility Web Application Principal" do tenant,
-# autorizado pela página "API access" do SharePoint Admin Center.
+# The SPFx does NOT have its own app registration: AadHttpClient uses the tenant's
+# "SharePoint Online Client Extensibility Web Application Principal",
+# authorized on the "API access" page of the SharePoint Admin Center.
 
 terraform {
   required_providers {
@@ -29,7 +29,7 @@ data "azuread_service_principal" "graph" {
 
 locals {
   owners = [data.azuread_client_config.current.object_id]
-  # Delegadas: o Graph Search só devolve o que o próprio usuário já pode abrir.
+  # Delegated: Graph Search only returns what the user themselves can already open.
   graph_delegated_scopes = ["Files.Read.All", "Sites.Read.All"]
 }
 
@@ -82,7 +82,7 @@ resource "azuread_service_principal" "knowledge_api" {
   owners    = local.owners
 }
 
-# Consentimento de administrador (tenant inteiro) para as permissões delegadas do Graph.
+# Admin consent (whole tenant) for the Graph delegated permissions.
 resource "azuread_service_principal_delegated_permission_grant" "graph" {
   count = var.grant_admin_consent ? 1 : 0
 

@@ -30,7 +30,7 @@ for (const file of readdirSync(sourceDir).filter((f) => f.endsWith(".md") && f !
   const { meta, blocks } = parseSampleDoc(readFileSync(join(sourceDir, file), "utf8"), file);
   const doc = new Document({
     title: meta.title,
-    creator: "Aurora Logística (fictícia)",
+    creator: "Aurora Logística (fictional)",
     numbering: {
       config: [
         {
@@ -49,4 +49,4 @@ for (const file of readdirSync(sourceDir).filter((f) => f.endsWith(".md") && f !
 }
 
 writeFileSync(join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-console.log(`${manifest.length} documentos gerados em ${outDir}`);
+console.log(`${manifest.length} documents generated in ${outDir}`);

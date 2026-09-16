@@ -1,20 +1,20 @@
 variable "environment" {
-  description = "Sufixo de ambiente (dev, prod)."
+  description = "Environment suffix (dev, prod)."
   type        = string
 }
 
 variable "test_user_a_upn" {
-  description = "UPN do usuário de teste A (acessa tudo, inclusive RH-Restrito)."
+  description = "UPN of test user A (accesses everything, including RH-Restrito)."
   type        = string
 }
 
 variable "test_user_b_upn" {
-  description = "UPN do usuário de teste B (sem acesso a RH-Restrito)."
+  description = "UPN of test user B (no access to RH-Restrito)."
   type        = string
 }
 
 variable "grant_admin_consent" {
-  description = "Concede consentimento de administrador às permissões delegadas do Graph."
+  description = "Grants admin consent for the Graph delegated permissions."
   type        = bool
   default     = true
 }

@@ -7,7 +7,7 @@ output "knowledge_api_identifier_uri" {
 }
 
 output "knowledge_api_display_name" {
-  description = "Nome usado em webApiPermissionRequests do SPFx."
+  description = "Name used in the SPFx webApiPermissionRequests."
   value       = azuread_application.knowledge_api.display_name
 }
 

@@ -2,7 +2,7 @@
   "name": "@kb/sample-docs",
   "version": "0.1.0",
   "private": true,
-  "description": "Converte os documentos sintéticos de samples/documents em .docx para upload no SharePoint.",
+  "description": "Converts the synthetic documents in samples/documents into .docx files for upload to SharePoint.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",

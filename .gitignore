@@ -3,13 +3,13 @@ dist/
 *.tsbuildinfo
 coverage/
 
-# Documentos gerados (fonte em samples/documents)
+# Generated documents (source in samples/documents)
 samples/dist/
 
-# Prints originais (têm domínio e contas reais); só versões anonimizadas vão para docs/
+# Original screenshots (have real domain and accounts); only anonymized versions go to docs/
 /images/
 
-# Configuração local e segredos
+# Local configuration and secrets
 .env
 .env.*
 !.env.example

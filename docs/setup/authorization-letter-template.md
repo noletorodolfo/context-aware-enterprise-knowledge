@@ -1,6 +1,8 @@
-# Modelo de autorização — empresa parceira
+# Authorization letter template — partner company
 
-> Modelo simples, não é aconselhamento jurídico. A versão preenchida e assinada fica **fora** do repositório.
+> Simple template, not legal advice. The filled-in and signed version stays **outside** the repository.
+>
+> The letter body below is kept in pt-BR (Brazilian Portuguese) because it is signed by a Brazilian company.
 
 ---
 

@@ -1,4 +1,4 @@
-/** Contexto da página do SharePoint onde a pergunta foi feita. */
+/** Context of the SharePoint page where the question was asked. */
 export interface PageContext {
   url: string;
   title: string;
@@ -11,7 +11,7 @@ export interface Question {
   page: PageContext;
 }
 
-/** Trecho de documento recuperado para um usuário específico (já filtrado por permissão). */
+/** Document excerpt retrieved for a specific user (already filtered by permission). */
 export interface Chunk {
   id: string;
   docId: string;
@@ -29,7 +29,7 @@ export interface Citation {
 export interface Answer {
   text: string;
   citations: Citation[];
-  /** true quando não havia contexto suficiente e o assistente se recusou a responder. */
+  /** true when there was not enough context and the assistant refused to answer. */
   refused: boolean;
   promptVersion: string;
 }

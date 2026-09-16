@@ -1,5 +1,5 @@
 output "backend_config" {
-  description = "Conteúdo para infra/terraform/envs/dev/backend.hcl."
+  description = "Content for infra/terraform/envs/dev/backend.hcl."
   value       = <<-EOT
     resource_group_name  = "${azurerm_resource_group.tfstate.name}"
     storage_account_name = "${azurerm_storage_account.tfstate.name}"

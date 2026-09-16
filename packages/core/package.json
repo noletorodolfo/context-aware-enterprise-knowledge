@@ -2,7 +2,7 @@
   "name": "@kb/core",
   "version": "0.1.0",
   "private": true,
-  "description": "Domínio do contexto Query: perguntas, trechos, citações e respostas.",
+  "description": "Query context domain: questions, chunks, citations and answers.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

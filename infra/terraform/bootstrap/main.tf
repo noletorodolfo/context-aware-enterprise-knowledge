@@ -1,5 +1,5 @@
-# Bootstrap: cria o storage do state remoto e o alerta de orçamento.
-# É o único módulo com state local (problema do ovo e da galinha). Rodar uma vez só.
+# Bootstrap: creates the remote state storage and the budget alert.
+# This is the only module with local state (chicken-and-egg problem). Run it once.
 
 terraform {
   required_version = ">= 1.9"
@@ -53,7 +53,7 @@ resource "azurerm_storage_account" "tfstate" {
   account_replication_type        = "LRS"
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
-  # Sem chaves de acesso: state lido e escrito só com identidade do Entra ID.
+  # No access keys: state is read and written only with an Entra ID identity.
   shared_access_key_enabled = false
 
   blob_properties {

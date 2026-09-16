@@ -8,8 +8,8 @@ export interface CitationCheck {
 const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
 /**
- * Garante que cada citação aponta para um trecho realmente recuperado e que a citação
- * existe literalmente nesse trecho. Citações inventadas pelo modelo são descartadas.
+ * Ensures each citation points to an excerpt that was actually retrieved and that the
+ * citation exists literally in that excerpt. Citations fabricated by the model are discarded.
  */
 export function checkCitations(citations: Citation[], retrieved: Chunk[]): CitationCheck {
   const byId = new Map(retrieved.map((c) => [c.id, c]));
@@ -28,7 +28,7 @@ export function checkCitations(citations: Citation[], retrieved: Chunk[]): Citat
   return result;
 }
 
-/** Aplica a checagem na resposta: se nenhuma citação sobreviver, a resposta vira recusa. */
+/** Applies the check to the answer: if no citation survives, the answer becomes a refusal. */
 export function enforceGrounding(answer: Answer, retrieved: Chunk[]): Answer {
   if (answer.refused) return answer;
   const { valid } = checkCitations(answer.citations, retrieved);

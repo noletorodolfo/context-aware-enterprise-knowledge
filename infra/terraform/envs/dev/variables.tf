@@ -1,5 +1,5 @@
 variable "tenant_id" {
-  description = "ID do tenant Entra ID da empresa parceira."
+  description = "Entra ID tenant ID of the partner company."
   type        = string
 }
 

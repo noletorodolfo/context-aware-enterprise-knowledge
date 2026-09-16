@@ -20,12 +20,12 @@ export interface SampleDoc {
 
 const AUDIENCES: readonly Audience[] = ["todos", "rh"];
 
-/** Parser mínimo para o subconjunto de Markdown usado em samples/documents. */
+/** Minimal parser for the Markdown subset used in samples/documents. */
 export function parseSampleDoc(source: string, fileName: string): SampleDoc {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(source.replace(/\r\n/g, "\n"));
   const [, header, body] = match ?? [];
   if (header === undefined || body === undefined) {
-    throw new Error(`${fileName}: front matter ausente`);
+    throw new Error(`${fileName}: missing front matter`);
   }
 
   const fields = Object.fromEntries(
@@ -36,9 +36,9 @@ export function parseSampleDoc(source: string, fileName: string): SampleDoc {
   );
 
   const { title, library, audience, purpose } = fields;
-  if (!title || !library) throw new Error(`${fileName}: title e library são obrigatórios`);
+  if (!title || !library) throw new Error(`${fileName}: title and library are required`);
   if (!AUDIENCES.includes(audience as Audience)) {
-    throw new Error(`${fileName}: audience deve ser um de ${AUDIENCES.join(", ")}`);
+    throw new Error(`${fileName}: audience must be one of ${AUDIENCES.join(", ")}`);
   }
 
   const meta: SampleDocMeta = { title, library, audience: audience as Audience };

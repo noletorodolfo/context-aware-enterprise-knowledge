@@ -1,7 +1,7 @@
 terraform {
   required_version = ">= 1.9"
 
-  # Configuração em backend.hcl (gerado pelo output do bootstrap):
+  # Configuration in backend.hcl (generated from the bootstrap output):
   #   terraform init -backend-config=backend.hcl
   backend "azurerm" {}
 

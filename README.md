@@ -1,31 +1,37 @@
 # Context-Aware Enterprise Knowledge Platform
 
-Assistente de conhecimento corporativo embutido no SharePoint: responde perguntas **citando as fontes**
-e **respeitando as permissões** de quem pergunta. Projeto de portfólio com arquitetura, segurança,
-IA governada e infraestrutura como código, a custo zero.
+Corporate knowledge assistant embedded in SharePoint: answers questions **citing sources**
+and **respecting the permissions** of whoever is asking. Portfolio project with architecture, security,
+governed AI and infrastructure as code, at zero cost.
 
-> 🚧 Em construção. Fase atual: **0 — Fundação**. Veja o [plano completo](docs/PLANO.md).
+> 🚧 Under construction. Current phase: **0 — Foundation**. See the [full plan](docs/PLAN.md).
 
-## Estrutura
+## Language
 
-| Caminho             | Conteúdo                                                     |
-| ------------------- | ------------------------------------------------------------ |
-| `packages/core`     | Domínio do contexto Query (citações, grounding)              |
-| `tools/sample-docs` | Gerador dos `.docx` da empresa fictícia                      |
-| `samples/documents` | Documentos sintéticos, incluindo casos de teste de segurança |
-| `infra/terraform`   | State remoto, orçamento e identidade no Entra ID             |
-| `docs/`             | Plano, guias de setup e (em breve) arquitetura e ADRs        |
+The repository (code, docs, commit messages) is in English. The synthetic documents in
+`samples/documents/` and the assistant's UI stay in pt-BR, since the fictional company and its
+users are Brazilian.
 
-## Rodando localmente
+## Structure
 
-Requer Node 22 (ver `.nvmrc`).
+| Path                | Content                                             |
+| ------------------- | --------------------------------------------------- |
+| `packages/core`     | Query context domain (citations, grounding)         |
+| `tools/sample-docs` | Generator for the fictional company's `.docx` files |
+| `samples/documents` | Synthetic documents, including security test cases  |
+| `infra/terraform`   | Remote state, budget and identity in Entra ID       |
+| `docs/`             | Plan, setup guides and (soon) architecture and ADRs |
+
+## Running locally
+
+Requires Node 22 (see `.nvmrc`).
 
 ```bash
 npm install
-npm run check          # formatação, lint, typecheck e testes
-npm run samples:build  # gera samples/dist/*.docx
+npm run check          # formatting, lint, typecheck and tests
+npm run samples:build  # generates samples/dist/*.docx
 ```
 
-## Licença
+## License
 
 MIT

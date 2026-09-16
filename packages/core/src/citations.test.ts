@@ -21,7 +21,7 @@ const answer = (citations: Answer["citations"]): Answer => ({
 });
 
 describe("checkCitations", () => {
-  it("aceita citação literal de trecho recuperado, ignorando espaços e caixa", () => {
+  it("accepts a literal citation of a retrieved chunk, ignoring spacing and case", () => {
     const r = checkCitations(
       [{ chunkId: "pol-home-office#2", quote: "Trabalhar remotamente até 3 dias por semana" }],
       chunks,
@@ -30,12 +30,12 @@ describe("checkCitations", () => {
     expect(r.rejected).toHaveLength(0);
   });
 
-  it("rejeita citação de trecho que não foi recuperado", () => {
+  it("rejects a citation of a chunk that was not retrieved", () => {
     const r = checkCitations([{ chunkId: "tabela-salarial#1", quote: "qualquer" }], chunks);
     expect(r.rejected[0]?.reason).toBe("unknown-chunk");
   });
 
-  it("rejeita citação que não existe no texto do trecho", () => {
+  it("rejects a citation that does not exist in the chunk text", () => {
     const r = checkCitations(
       [{ chunkId: "pol-home-office#2", quote: "5 dias por semana" }],
       chunks,
@@ -45,13 +45,13 @@ describe("checkCitations", () => {
 });
 
 describe("enforceGrounding", () => {
-  it("converte em recusa quando nenhuma citação é válida", () => {
+  it("converts to a refusal when no citation is valid", () => {
     const r = enforceGrounding(answer([{ chunkId: "inventado", quote: "x" }]), chunks);
     expect(r.refused).toBe(true);
     expect(r.citations).toEqual([]);
   });
 
-  it("mantém só as citações válidas", () => {
+  it("keeps only the valid citations", () => {
     const r = enforceGrounding(
       answer([
         { chunkId: "pol-home-office#2", quote: "3 dias por semana" },
