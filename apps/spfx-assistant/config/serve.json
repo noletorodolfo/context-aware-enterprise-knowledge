@@ -9,7 +9,8 @@
         "ce3f2e25-126d-41f2-81b1-85b7974e46f5": {
           "location": "ClientSideExtension.ApplicationCustomizer",
           "properties": {
-            "testMessage": "Test message"
+            "apiBaseUrl": "https://func-kb-api-dev-xxxxxx.azurewebsites.net",
+            "apiResource": "api://00000000-0000-0000-0000-000000000000"
           }
         }
       }
@@ -20,7 +21,8 @@
         "ce3f2e25-126d-41f2-81b1-85b7974e46f5": {
           "location": "ClientSideExtension.ApplicationCustomizer",
           "properties": {
-            "testMessage": "Test message"
+            "apiBaseUrl": "https://func-kb-api-dev-xxxxxx.azurewebsites.net",
+            "apiResource": "api://00000000-0000-0000-0000-000000000000"
           }
         }
       }

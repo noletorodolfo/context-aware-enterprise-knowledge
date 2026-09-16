@@ -3,13 +3,17 @@
 SharePoint Framework (SPFx) application customizer that embeds the
 knowledge assistant in SharePoint pages. It renders a launcher button and a
 chat panel, calls the Knowledge API (`apps/knowledge-api`) with the current
-user's token, and shows the answer with its source citations.
+user's token, and shows the answer. Phase 1 returns a mock answer; source
+citations arrive in Phase 2.
 
 ## Prerequisites
 
 - Node 22 (see the repo root `.nvmrc`).
 - The SPFx toolchain (`@microsoft/*` packages, Heft) installed via
-  `npm install` at the repo root; no separate global install is required.
+  `npm install` inside this directory (`apps/spfx-assistant`); this is a
+  standalone SPFx project with its own `package.json`/lockfile, so the
+  toolchain is not installed by the repo root `npm install`. No separate
+  global install is required.
 
 ## Configuration
 
@@ -32,8 +36,9 @@ npm run elements
 npm run build
 ```
 
-`npm run elements` generates the SharePoint tenant-wide extension elements
-manifest. `npm run build` runs the test suite and produces
+`npm run elements` generates the `elements.xml` for the site-scoped feature
+that deploys the extension's custom action (not a tenant-wide deployment).
+`npm run build` runs the test suite and produces
 `sharepoint/solution/spfx-assistant.sppkg`, the package uploaded to the
 tenant App Catalog.
 

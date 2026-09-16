@@ -44,18 +44,26 @@ export function ChatPanel({ id, client, getPage, onClose }: ChatPanelProps): Rea
 
   const send = async (question: string): Promise<void> => {
     setSending(true);
-    const result = await client.ask({ question, page: getPage() });
-    setSending(false);
-    setMessages((current) => [
-      ...current,
-      result.ok
-        ? {
-            kind: "answer",
-            text: result.answer.text,
-            isMock: result.answer.promptVersion === "mock",
-          }
-        : { kind: "error", text: errorMessages[result.error], retryQuestion: question },
-    ]);
+    try {
+      const result = await client.ask({ question, page: getPage() });
+      setMessages((current) => [
+        ...current,
+        result.ok
+          ? {
+              kind: "answer",
+              text: result.answer.text,
+              isMock: result.answer.promptVersion === "mock",
+            }
+          : { kind: "error", text: errorMessages[result.error], retryQuestion: question },
+      ]);
+    } catch {
+      setMessages((current) => [
+        ...current,
+        { kind: "error", text: errorMessages["server-error"], retryQuestion: question },
+      ]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const submit = (): void => {

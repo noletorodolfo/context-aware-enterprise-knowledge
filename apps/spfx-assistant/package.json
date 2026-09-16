@@ -16,11 +16,10 @@
   "dependencies": {
     "@fluentui/react-components": "^9.74.7",
     "@fluentui/react-icons": "^2.0.341",
-    "@microsoft/decorators": "1.22.2",
     "@microsoft/sp-application-base": "1.22.2",
     "@microsoft/sp-component-base": "1.22.2",
     "@microsoft/sp-core-library": "1.22.2",
-    "@microsoft/sp-dialog": "1.22.2",
+    "@microsoft/sp-http": "1.22.2",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "tslib": "2.3.1"

@@ -81,6 +81,33 @@ describe("ChatPanel", () => {
     expect(client.ask.mock.calls[1]?.[0]).toEqual({ question: "Qual o auxílio?", page });
   });
 
+  it("shows a server error and re-enables Enviar when getPage throws", async () => {
+    const client = fakeClient();
+    const onClose = vi.fn();
+    render(
+      <ChatPanel
+        id="kb-panel"
+        client={client}
+        getPage={() => {
+          throw new Error("boom");
+        }}
+        onClose={onClose}
+      />,
+    );
+    const input = screen.getByLabelText("Sua pergunta") as HTMLTextAreaElement;
+    ask(input, "Qual o auxílio?");
+
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "O assistente teve um problema. Tente de novo.",
+      ),
+    );
+    expect(client.ask).not.toHaveBeenCalled();
+    expect(
+      (screen.getByRole("button", { name: "Enviar" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
   it("rejects questions over 1000 characters without calling the API", async () => {
     const client = fakeClient();
     const { input } = renderPanel(client);
