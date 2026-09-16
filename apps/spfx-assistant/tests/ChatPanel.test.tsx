@@ -115,4 +115,34 @@ describe("AssistantLauncher", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(button);
   });
+
+  it("renders no visible text inside the launcher button, only an icon", () => {
+    render(<AssistantLauncher client={fakeClient()} getPage={() => page} />);
+    const button = screen.getByRole("button", { name: "Abrir assistente" });
+
+    expect(button.textContent).toBe("");
+    expect(button.querySelector("svg")).not.toBeNull();
+  });
+
+  it("uses brandColor as the button background when provided", () => {
+    render(
+      <AssistantLauncher client={fakeClient()} getPage={() => page} brandColor="#123456" />,
+    );
+    const button = screen.getByRole("button", { name: "Abrir assistente" });
+
+    expect(button.style.background).toContain("rgb(18, 52, 86)");
+  });
+
+  it("swaps the icon when the panel opens and closes", () => {
+    render(<AssistantLauncher client={fakeClient()} getPage={() => page} />);
+    const button = screen.getByRole("button", { name: "Abrir assistente" });
+    const closedIcon = button.innerHTML;
+
+    fireEvent.click(button);
+    const openIcon = button.innerHTML;
+    expect(openIcon).not.toBe(closedIcon);
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(button.innerHTML).toBe(closedIcon);
+  });
 });

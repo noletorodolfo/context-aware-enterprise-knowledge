@@ -6,6 +6,7 @@ import {
   PlaceholderName,
 } from "@microsoft/sp-application-base";
 import { AadHttpClient } from "@microsoft/sp-http";
+import { ThemeProvider } from "@microsoft/sp-component-base";
 import { KnowledgeApiClient, type HttpPoster } from "../../api/KnowledgeApiClient";
 import { AssistantLauncher } from "../../components/AssistantLauncher";
 import type { PageContextDto } from "../../contract";
@@ -45,9 +46,21 @@ export default class AssistantApplicationCustomizer extends BaseApplicationCusto
     });
 
     ReactDOM.render(
-      React.createElement(AssistantLauncher, { client, getPage: () => this.currentPage() }),
+      React.createElement(AssistantLauncher, {
+        client,
+        getPage: () => this.currentPage(),
+        brandColor: this.themePrimaryColor(),
+      }),
       this.placeholder.domElement,
     );
+  }
+
+  private themePrimaryColor(): string | undefined {
+    const serviceScope = this.context.serviceScope;
+    if (!serviceScope || !serviceScope.consume) return undefined;
+
+    const themeProvider = serviceScope.consume(ThemeProvider.serviceKey);
+    return themeProvider?.tryGetTheme?.()?.palette?.themePrimary;
   }
 
   private currentPage(): PageContextDto {
