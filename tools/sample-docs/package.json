@@ -1,0 +1,14 @@
+{
+  "name": "@kb/sample-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Converte os documentos sintéticos de samples/documents em .docx para upload no SharePoint.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "build:docx": "tsc -b && node dist/build.js"
+  },
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

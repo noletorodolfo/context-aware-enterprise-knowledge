@@ -1,0 +1,33 @@
+{
+  "name": "context-aware-enterprise-knowledge",
+  "private": true,
+  "description": "Assistente de conhecimento corporativo no SharePoint com respostas citadas e respeito a permissões.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "workspaces": [
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "samples:build": "npm run build:docx -w @kb/sample-docs",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^10.10.0",
+    "prettier": "^3.9.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,33 @@
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Documentos gerados (fonte em samples/documents)
+samples/dist/
+
+# Prints originais (têm domínio e contas reais); só versões anonimizadas vão para docs/
+/images/
+
+# Configuração local e segredos
+.env
+.env.*
+!.env.example
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+*.tfplan
+crash.log
+
+# SPFx
+apps/spfx-assistant/temp/
+apps/spfx-assistant/lib/
+apps/spfx-assistant/sharepoint/solution/
+
+# Azure Functions
+local.settings.json
