@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/llm-providers" },
-    { "path": "tools/sample-docs" }
+    { "path": "tools/sample-docs" },
+    { "path": "apps/knowledge-api" }
   ]
 }

@@ -9,7 +9,8 @@
   },
   "workspaces": [
     "packages/*",
-    "tools/*"
+    "tools/*",
+    "apps/knowledge-api"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
