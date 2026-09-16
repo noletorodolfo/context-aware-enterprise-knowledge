@@ -80,6 +80,27 @@ describe("KnowledgeApiClient", () => {
     expect(await client(http).ask(request)).toEqual({ ok: false, error: "not-configured" });
   });
 
+  it("maps a token-acquisition interaction_required failure during post to not-configured", async () => {
+    const http = poster(new Error("interaction_required: user must sign in"));
+    expect(await client(http).ask(request)).toEqual({ ok: false, error: "not-configured" });
+  });
+
+  it("does not misclassify unrelated 'token' errors as not-configured", async () => {
+    const http = poster(new Error("Invalid token in request stream"));
+    expect(await client(http).ask(request)).toEqual({ ok: false, error: "unavailable" });
+  });
+
+  it("maps a malformed JSON body on a 200 response to server-error", async () => {
+    const http: HttpPoster = {
+      post: () =>
+        Promise.resolve({
+          status: 200,
+          json: () => Promise.reject(new SyntaxError("Unexpected token < in JSON at position 0")),
+        }),
+    };
+    expect(await client(http).ask(request)).toEqual({ ok: false, error: "server-error" });
+  });
+
   it("maps a failure to create the AAD client to not-configured", async () => {
     const failing = new KnowledgeApiClient({
       baseUrl: "https://api.example.net",

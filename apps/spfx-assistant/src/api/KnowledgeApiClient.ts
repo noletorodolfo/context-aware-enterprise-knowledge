@@ -24,8 +24,9 @@ export interface KnowledgeApiClientOptions {
 }
 
 const TIMEOUT = Symbol("timeout");
-const TOKEN_ERROR = /AADSTS|consent|token/i;
+const TOKEN_ERROR = /AADSTS|consent_required|interaction_required|login_required|TokenRenewal/i;
 
+/** 403 and any status not explicitly listed (e.g. 404) intentionally fall back to a broader bucket. */
 function statusToError(status: number): AskErrorKind {
   if (status === 400) return "invalid-request";
   if (status === 401 || status === 403) return "unauthorized";
@@ -54,8 +55,9 @@ export class KnowledgeApiClient implements AskClient {
       timer = setTimeout(() => resolve(TIMEOUT), timeoutMs);
     });
 
+    let response: { status: number; json(): Promise<unknown> } | typeof TIMEOUT;
     try {
-      const response = await Promise.race([
+      response = await Promise.race([
         http.post(`${this.options.baseUrl.replace(/\/$/, "")}/api/ask`, {
           headers: {
             "Content-Type": "application/json",
@@ -65,15 +67,20 @@ export class KnowledgeApiClient implements AskClient {
         }),
         timeout,
       ]);
-      if (response === TIMEOUT) return { ok: false, error: "unavailable" };
-      if (response.status === 200)
-        return { ok: true, answer: (await response.json()) as AskResponse };
-      return { ok: false, error: statusToError(response.status) };
     } catch (error) {
+      clearTimeout(timer);
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, error: TOKEN_ERROR.test(message) ? "not-configured" : "unavailable" };
-    } finally {
-      clearTimeout(timer);
+    }
+    clearTimeout(timer);
+
+    if (response === TIMEOUT) return { ok: false, error: "unavailable" };
+    if (response.status !== 200) return { ok: false, error: statusToError(response.status) };
+
+    try {
+      return { ok: true, answer: (await response.json()) as AskResponse };
+    } catch {
+      return { ok: false, error: "server-error" };
     }
   }
 }
