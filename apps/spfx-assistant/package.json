@@ -11,7 +11,7 @@
     "clean": "heft clean",
     "eject-webpack": "heft eject-webpack",
     "elements": "node scripts/write-elements.mjs",
-    "test:unit": "vitest run --passWithNoTests"
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.74.7",
