@@ -100,7 +100,8 @@ Automated (part of `npm run check`, later CI):
   with correlation id and no stack; question text absent from logs.
 - **Contract:** SPFx `contract.ts` assignable to `@kb/core` types (typecheck).
 - **`MockLlmProvider`:** same input, same output.
-- **SPFx** (Jest from the SPFx toolchain): client maps `401`/`400`/`500`/timeout/network error to the
+- **SPFx** (Vitest + jsdom + Testing Library inside `apps/spfx-assistant`, tests outside `src/` so the
+  SPFx build ignores them; same runner as the rest of the repo): client maps `401`/`400`/`500`/timeout/network error to the
   right message; panel focus on open, `Esc` closes, `aria-live` region updated.
 - **Terraform:** `fmt -check`, `validate`; every `apply` runs from a saved plan reviewed by the user.
 
