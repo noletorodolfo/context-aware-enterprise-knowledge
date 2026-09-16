@@ -72,6 +72,15 @@ describe("createTokenValidator", () => {
     });
   });
 
+  it('falls back to "usuário" when neither name nor preferred_username is present', async () => {
+    const { name: _name, ...claims } = baseClaims;
+    const result = await validate(`Bearer ${await sign(claims)}`);
+    expect(result).toEqual({
+      ok: true,
+      user: { objectId: "user-object-id", name: "usuário" },
+    });
+  });
+
   it.each([undefined, "", "Basic abc", "Bearer"])("rejects missing token (%s)", async (header) => {
     expect(await validate(header)).toEqual({ ok: false, reason: "missing-token" });
   });

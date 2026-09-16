@@ -66,6 +66,8 @@ export function createTokenValidator(options: TokenValidatorOptions): TokenValid
       (value): value is string => typeof value === "string" && value !== "",
     );
 
-    return { ok: true, user: { objectId, name: name ?? "unknown user" } };
+    // "usuário" (not "unknown user"): this fallback can surface verbatim in the pt-BR mock
+    // answer greeting, so it must already be in Portuguese.
+    return { ok: true, user: { objectId, name: name ?? "usuário" } };
   };
 }
