@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+  <CustomAction
+    Title="Knowledge Assistant"
+    Location="ClientSideExtension.ApplicationCustomizer"
+    ClientSideComponentId="{{componentId}}"
+    ClientSideComponentProperties="{{properties}}" />
+</Elements>

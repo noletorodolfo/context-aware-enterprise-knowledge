@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "spfx-assistant",
+    "useGulp": false,
+    "componentType": "extension",
+    "extensionType": "ApplicationCustomizer",
+    "componentName": "Assistant",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.22.2",
+    "sdksVersions": {},
+    "version": "1.22.2",
+    "libraryName": "spfx-assistant",
+    "libraryId": "b0ddb96b-fb4f-45c9-ab1f-42a2b0e1be4b",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionShortDescription": "spfx-assistant description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false
+  }
+}

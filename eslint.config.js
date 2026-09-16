@@ -9,6 +9,7 @@ export default tseslint.config(
       "samples/dist/**",
       "**/*.d.ts",
       "apps/knowledge-api/deploy/**",
+      "apps/spfx-assistant/**",
     ],
   },
   js.configs.recommended,

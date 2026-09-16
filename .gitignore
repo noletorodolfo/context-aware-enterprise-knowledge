@@ -28,6 +28,9 @@ crash.log
 apps/spfx-assistant/temp/
 apps/spfx-assistant/lib/
 apps/spfx-assistant/sharepoint/solution/
+apps/spfx-assistant/release/
+apps/spfx-assistant/config/api.json
+apps/spfx-assistant/sharepoint/assets/elements.xml
 
 # Azure Functions
 local.settings.json

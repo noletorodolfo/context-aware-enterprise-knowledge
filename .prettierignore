@@ -5,3 +5,4 @@ package-lock.json
 .terraform
 .superpowers
 apps/knowledge-api/deploy
+apps/spfx-assistant
