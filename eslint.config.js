@@ -2,7 +2,15 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**", "samples/dist/**", "**/*.d.ts"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "samples/dist/**",
+      "**/*.d.ts",
+      "apps/knowledge-api/deploy/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
@@ -11,6 +19,12 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
+    },
+  },
+  {
+    files: ["**/*.mjs"],
+    languageOptions: {
+      globals: { URL: "readonly", console: "readonly" },
     },
   },
 );

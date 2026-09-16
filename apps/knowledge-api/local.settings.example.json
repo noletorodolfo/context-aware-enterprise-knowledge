@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "",
+    "TENANT_ID": "00000000-0000-0000-0000-000000000000",
+    "API_CLIENT_ID": "00000000-0000-0000-0000-000000000000"
+  }
+}

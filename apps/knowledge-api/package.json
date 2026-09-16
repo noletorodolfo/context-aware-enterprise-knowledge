@@ -5,7 +5,8 @@
   "description": "Knowledge API: Azure Functions app exposing POST /api/ask.",
   "type": "module",
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "package": "node scripts/package.mjs"
   },
   "dependencies": {
     "@azure/functions": "^4.16.4",
@@ -13,5 +14,8 @@
     "@kb/llm-providers": "0.1.0",
     "jose": "^6.2.12",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

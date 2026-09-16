@@ -31,3 +31,4 @@ apps/spfx-assistant/sharepoint/solution/
 
 # Azure Functions
 local.settings.json
+apps/knowledge-api/deploy/
