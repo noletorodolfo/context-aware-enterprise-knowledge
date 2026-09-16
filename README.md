@@ -14,16 +14,16 @@ users are Brazilian.
 
 ## Structure
 
-| Path                     | Content                                                |
-| ------------------------ | ------------------------------------------------------ |
-| `packages/core`          | Query context domain (citations, grounding)            |
-| `packages/llm-providers` | LLM provider abstraction (mock answer in Phase 1)      |
-| `apps/knowledge-api`     | Azure Functions API (`/api/ask`), token validation     |
-| `apps/spfx-assistant`    | SharePoint Framework extension embedding the assistant |
-| `tools/sample-docs`      | Generator for the fictional company's `.docx` files    |
-| `samples/documents`      | Synthetic documents, including security test cases     |
-| `infra/terraform`        | Remote state, budget and identity in Entra ID          |
-| `docs/`                  | Plan, setup guides and (soon) architecture and ADRs    |
+| Path                     | Content                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `packages/core`          | Query context domain (citations, grounding)                                   |
+| `packages/llm-providers` | LLM provider abstraction (mock answer in Phase 1)                             |
+| `apps/knowledge-api`     | Azure Functions API (`/api/ask`), token validation                            |
+| `apps/spfx-assistant`    | SharePoint Framework extension embedding the assistant                        |
+| `tools/sample-docs`      | Generator for the fictional company's `.docx` files                           |
+| `samples/documents`      | Synthetic documents, including security test cases                            |
+| `infra/terraform`        | Remote state, budget, identity in Entra ID and the Knowledge API Function App |
+| `docs/`                  | Plan, setup guides and (soon) architecture and ADRs                           |
 
 ## Running locally
 
@@ -31,7 +31,10 @@ Requires Node 22 (see `.nvmrc`).
 
 ```bash
 npm install
-npm run check          # formatting, lint, typecheck and tests
+npm --prefix apps/spfx-assistant install  # apps/spfx-assistant is a standalone SPFx project
+                                           # (own package.json/lockfile); its deps aren't hoisted
+                                           # by the root workspaces install
+npm run check          # formatting, lint, typecheck and tests (includes the spfx unit tests)
 npm run samples:build  # generates samples/dist/*.docx
 ```
 

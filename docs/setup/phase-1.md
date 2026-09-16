@@ -34,13 +34,20 @@ The partner tenant id used for token issuance is stored in the git-ignored
 
 ## Deploy the API
 
-Build the deploy bundle (bundles the `@kb/*` workspace packages into a single
-`main.cjs` since `func azure functionapp publish` cannot follow workspace
-symlinks):
+Build the deploy bundle. `npm run package` first runs `tsc -b` for the whole
+repo project graph (so `@kb/core` and `@kb/llm-providers` have a `dist/` to
+resolve, even on a fresh clone) and then bundles everything, including those
+workspace packages, into a single `main.cjs`, since `func azure functionapp
+publish` cannot follow workspace symlinks:
 
 ```powershell
 npm run package -w @kb/knowledge-api
 ```
+
+This also writes a `deploy/local.settings.json` with
+`{"IsEncrypted": false, "Values": {"FUNCTIONS_WORKER_RUNTIME": "node"}}` so
+`func` can detect the project language (see the pitfall below); no manual
+step is needed.
 
 Publish with Azure Functions Core Tools. If `func` is not on `PATH`, call it
 by its full path (e.g. `C:\Program Files\Microsoft\Azure Functions Core
@@ -52,25 +59,6 @@ cd apps/knowledge-api/deploy
 func azure functionapp publish $name
 cd ../../..
 ```
-
-Note: `func azure functionapp publish` needs to detect the project language.
-Because the deploy bundle uses the Node.js v4 programming model (no
-`function.json` files), the CLI may fail with `Can't determine project
-language from files.` To fix this, add a temporary `local.settings.json` next
-to `host.json` in `deploy/` before publishing:
-
-```json
-{
-  "IsEncrypted": false,
-  "Values": {
-    "FUNCTIONS_WORKER_RUNTIME": "node"
-  }
-}
-```
-
-This file is only used by the CLI for local detection; it is not required by
-the deployed app (all required settings are Terraform-managed on the Function
-App resource itself).
 
 ## Build the SPFx package
 
@@ -139,8 +127,9 @@ Acceptance tests on `/sites/kb-demo` (all passed):
 | A opens a partner department site                                    | No assistant button                                                                                               |
 | Keyboard only: Tab to button, Enter, type, Enter, Esc                | Panel opens, answers, closes; focus returns to the button                                                         |
 
-Feedback captured for later: the launcher icon looks small and plain
-(follow-up UI polish, not part of this phase).
+Feedback captured for later: the launcher icon looks small and plain. This
+was addressed within Phase 1 (Fluent icon, theme color, tooltip; package
+version 1.0.1.0).
 
 ## Pitfalls
 
@@ -148,9 +137,11 @@ Feedback captured for later: the launcher icon looks small and plain
   under `node_modules/@kb/*`; always publish the bundled `deploy/` output
   produced by `npm run package -w @kb/knowledge-api`, not the source tree.
 - Without any `function.json` files (Node.js v4 programming model), `func`
-  cannot infer the project language from the `deploy/` folder alone; add a
-  temporary `local.settings.json` with `FUNCTIONS_WORKER_RUNTIME: node` so
-  the CLI can detect it before publishing.
+  cannot infer the project language from the `deploy/` folder alone; the
+  `package` script writes a `local.settings.json` with
+  `FUNCTIONS_WORKER_RUNTIME: node` there so the CLI can detect it. It is only
+  used for local detection, not required by the deployed app (all real
+  settings are Terraform-managed on the Function App resource itself).
 - After a successful deploy, `func` may report the app as "unhealthy" via its
   own health probe immediately after publish. This does not necessarily mean
   the app is broken — verify with an actual HTTP request against `/api/ask`
