@@ -3,3 +3,4 @@ dist
 samples/dist
 package-lock.json
 .terraform
+.superpowers
