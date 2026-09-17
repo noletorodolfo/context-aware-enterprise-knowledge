@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@azure/functions": "^4.16.4",
+    "@azure/identity": "^4.13.3",
+    "@azure/keyvault-keys": "^4.10.2",
     "@kb/core": "0.1.0",
     "@kb/llm-providers": "0.1.0",
     "jose": "^6.2.12",
