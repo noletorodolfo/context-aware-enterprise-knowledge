@@ -16,6 +16,9 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@kb/core": "0.1.0"
+    "@azure/identity": "^4.13.3",
+    "@kb/core": "0.1.0",
+    "openai": "^7.17.0",
+    "zod": "^4.6.5"
   }
 }
