@@ -115,3 +115,35 @@ resource "azuread_group" "rh" {
   owners           = local.owners
   members          = [local.user_a_id]
 }
+
+# Public client used only by the end-to-end no-leak test (interactive sign-in, no secret).
+resource "azuread_application" "e2e_client" {
+  display_name                   = "kb-e2e-client-${var.environment}"
+  sign_in_audience               = "AzureADMyOrg"
+  owners                         = local.owners
+  fallback_public_client_enabled = true
+
+  public_client {
+    redirect_uris = ["http://localhost"]
+  }
+
+  required_resource_access {
+    resource_app_id = azuread_application.knowledge_api.client_id
+
+    resource_access {
+      id   = random_uuid.user_impersonation.result
+      type = "Scope"
+    }
+  }
+}
+
+resource "azuread_service_principal" "e2e_client" {
+  client_id = azuread_application.e2e_client.client_id
+  owners    = local.owners
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "e2e_client" {
+  service_principal_object_id          = azuread_service_principal.e2e_client.object_id
+  resource_service_principal_object_id = azuread_service_principal.knowledge_api.object_id
+  claim_values                         = ["user_impersonation"]
+}

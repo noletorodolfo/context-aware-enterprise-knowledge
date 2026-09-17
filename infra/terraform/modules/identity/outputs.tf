@@ -18,3 +18,12 @@ output "group_colaboradores_id" {
 output "group_rh_id" {
   value = azuread_group.rh.object_id
 }
+
+output "knowledge_api_application_id" {
+  description = "Resource ID of the API application (for credentials such as certificates)."
+  value       = azuread_application.knowledge_api.id
+}
+
+output "e2e_client_id" {
+  value = azuread_application.e2e_client.client_id
+}

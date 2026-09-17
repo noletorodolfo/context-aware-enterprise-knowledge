@@ -97,11 +97,11 @@ resource "azurerm_function_app_flex_consumption" "api" {
     }
   }
 
-  app_settings = {
+  app_settings = merge(var.extra_app_settings, {
     AzureWebJobsStorage__accountName = azurerm_storage_account.host.name
     TENANT_ID                        = var.tenant_id
     API_CLIENT_ID                    = var.api_client_id
-  }
+  })
 
   tags = var.tags
 }

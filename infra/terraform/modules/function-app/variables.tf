@@ -29,3 +29,9 @@ variable "cors_allowed_origins" {
   description = "Browser origins allowed to call the API (the SharePoint tenant origin)."
   type        = list(string)
 }
+
+variable "extra_app_settings" {
+  description = "Additional app settings (non-secret configuration)."
+  type        = map(string)
+  default     = {}
+}

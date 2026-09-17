@@ -4,3 +4,4 @@ owner             = "your-github-username"
 sharepoint_origin = "https://contoso.sharepoint.com"
 test_user_a_upn   = "kb.test.a@contoso.com"
 test_user_b_upn   = "kb.test.b@contoso.com"
+search_site_urls = ["https://contoso.sharepoint.com/sites/kb-demo"]
