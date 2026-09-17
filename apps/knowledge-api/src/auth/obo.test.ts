@@ -126,4 +126,13 @@ describe("createOboExchanger", () => {
       detail: { stage: "assertion", errorName: "Error" },
     });
   });
+
+  it("omits oauthError and aadstsCodes from detail when the token endpoint sends neither", async () => {
+    const { fetchFn } = fakeFetch([{ status: 500, json: {} }]);
+    const rejection = await exchanger(fetchFn)("t", "oid").catch((error) => error as UpstreamError);
+    expect(rejection).toBeInstanceOf(UpstreamError);
+    expect(rejection.detail).toEqual({ status: 500 });
+    expect(rejection.detail).not.toHaveProperty("oauthError");
+    expect(rejection.detail).not.toHaveProperty("aadstsCodes");
+  });
 });

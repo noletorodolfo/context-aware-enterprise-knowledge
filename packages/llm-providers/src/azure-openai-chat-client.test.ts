@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BadRequestError, RateLimitError } from "openai";
 import { describeOpenAiError, toUpstreamError } from "./azure-openai-chat-client.js";
 
 describe("describeOpenAiError", () => {
@@ -38,6 +39,46 @@ describe("describeOpenAiError", () => {
 
   it("describes a non-Error value", () => {
     expect(describeOpenAiError("some string failure")).toEqual({ errorName: "String" });
+  });
+
+  it("reports the real SDK subclass name for a BadRequestError content-filter rejection", () => {
+    const apiError = new BadRequestError(
+      400,
+      {
+        code: "content_filter",
+        param: "prompt",
+        innererror: { code: "ResponsibleAIPolicyViolation" },
+      },
+      "secret prompt text",
+      new Headers(),
+    );
+    const detail = describeOpenAiError(apiError);
+    expect(detail).toEqual({
+      errorName: "BadRequestError",
+      status: 400,
+      code: "content_filter",
+      param: "prompt",
+      contentFilter: true,
+      innerCode: "ResponsibleAIPolicyViolation",
+    });
+    expect(JSON.stringify(detail)).not.toContain("secret prompt text");
+    expect(toUpstreamError(apiError).kind).toBe("llm-content-filtered");
+  });
+
+  it("reports the real SDK subclass name for a RateLimitError", () => {
+    const apiError = new RateLimitError(
+      429,
+      { code: "rate_limit_exceeded" },
+      "secret prompt text",
+      new Headers(),
+    );
+    const detail = describeOpenAiError(apiError);
+    expect(detail).toEqual({
+      errorName: "RateLimitError",
+      status: 429,
+      code: "rate_limit_exceeded",
+    });
+    expect(toUpstreamError(apiError).kind).toBe("llm-unavailable");
   });
 });
 

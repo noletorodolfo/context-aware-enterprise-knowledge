@@ -13,17 +13,34 @@ interface ApiErrorShape {
 }
 
 /**
+ * Resolves a diagnostic error class name. Real `openai` SDK errors (`BadRequestError`,
+ * `RateLimitError`, ...) never set their own `name`, so `error.name` is just the inherited
+ * `"Error"` from the `Error` prototype chain; `error.constructor.name` is what actually carries
+ * the subclass. Falls back to `error.name` (e.g. for plain `Error`s, or test doubles that set
+ * `name` on a plain object) and finally to `"Unknown"`.
+ */
+function resolveErrorName(error: unknown): string {
+  if (error !== null && typeof error === "object") {
+    const ctorName = (error as { constructor?: { name?: string } }).constructor?.name;
+    if (typeof ctorName === "string" && ctorName !== "Object" && ctorName !== "Error") {
+      return ctorName;
+    }
+    const nameProperty = (error as ApiErrorShape).name;
+    if (typeof nameProperty === "string" && nameProperty.length > 0) return nameProperty;
+    return ctorName ?? "Unknown";
+  }
+  const nameProperty = (error as ApiErrorShape | null)?.name;
+  if (typeof nameProperty === "string") return nameProperty;
+  return (error as { constructor?: { name?: string } } | null)?.constructor?.name ?? "Unknown";
+}
+
+/**
  * Content-free diagnostic detail extracted from an `openai` SDK error (or anything else the
  * `chat.completions.create` call might throw, e.g. a token-acquisition failure). Never includes
  * `message`, request/response bodies, prompts or headers.
  */
 export function describeOpenAiError(error: unknown): UpstreamErrorDetail {
-  const nameProperty = (error as ApiErrorShape | null)?.name;
-  const errorName =
-    typeof nameProperty === "string"
-      ? nameProperty
-      : ((error as { constructor?: { name?: string } } | null)?.constructor?.name ?? "Unknown");
-  const detail: UpstreamErrorDetail = { errorName };
+  const detail: UpstreamErrorDetail = { errorName: resolveErrorName(error) };
 
   const shape = error as ApiErrorShape;
   if (typeof shape?.status === "number") detail.status = shape.status;

@@ -86,8 +86,10 @@ export function createOboExchanger(options: OboOptions): TokenExchanger {
         `OBO failed: ${json.error ?? String(response.status)}`,
         {
           status: response.status,
-          oauthError: json.error ?? "",
-          aadstsCodes: (json.error_codes ?? []).join(","),
+          ...(json.error ? { oauthError: json.error } : {}),
+          ...(json.error_codes && json.error_codes.length > 0
+            ? { aadstsCodes: json.error_codes.join(",") }
+            : {}),
         },
       );
     }
