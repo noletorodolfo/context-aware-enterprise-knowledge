@@ -51,12 +51,19 @@ const answerSchema = z.object({
   citations: z.array(z.object({ chunkId: z.string(), quote: z.string() })),
 });
 
+/**
+ * Neutralizes any `<document(s)>`/`</document(s)>`/`<question>` markup found in untrusted
+ * content, including whitespace-split variants (`</ document>`, `< /document>`,
+ * `<document\n>`) that would otherwise still be interpreted as our own delimiters.
+ */
 const neutralize = (text: string) =>
-  text
-    .replace(/<(\/?)(documents?|question)>/gi, "‹$1$2›")
-    .replace(/<(\/?)(documents?|question)\b/gi, "‹$1$2");
+  text.replace(
+    /<\s*(\/?)\s*(documents?|question)\b\s*(>)?/gi,
+    (_match, slash: string, tag: string, close?: string) => `‹${slash}${tag}${close ? "›" : ""}`,
+  );
 
-const attribute = (value: string) => value.replace(/"/g, "&quot;");
+const attribute = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Question and retrieved sections, delimited so the prompt can declare the documents untrusted. */
 export function buildUserMessage(question: string, chunks: Chunk[]): string {
