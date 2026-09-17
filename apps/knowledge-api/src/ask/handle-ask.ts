@@ -5,6 +5,7 @@ import {
   type Answer,
   type PageContext,
   type Question,
+  type UpstreamErrorDetail,
   type UpstreamErrorKind,
 } from "@kb/core";
 import type { LlmProvider, TokenUsage } from "@kb/llm-providers";
@@ -41,7 +42,7 @@ export interface AskDependencies {
 }
 
 const UPSTREAM_RESPONSES: Record<
-  UpstreamErrorKind,
+  Exclude<UpstreamErrorKind, "llm-content-filtered">,
   { status: AskHttpResponse["status"]; error: string }
 > = {
   "consent-required": { status: 403, error: "consent-required" },
@@ -94,16 +95,31 @@ export async function handleAsk(
 
     let answer: Answer;
     let usage: TokenUsage | undefined;
+    let refusalReason: "no-relevant-documents" | "ungrounded" | "content-filter" | undefined;
+    let upstreamDetail: UpstreamErrorDetail | undefined;
+
     if (chunks.length === 0) {
       answer = refusal(deps.provider.promptVersion);
+      refusalReason = "no-relevant-documents";
     } else {
-      const result = await deps.provider.generate({
-        question,
-        user: { name: auth.user.name },
-        chunks,
-      });
-      usage = result.usage;
-      answer = enforceGrounding(result.draft, chunks);
+      try {
+        const result = await deps.provider.generate({
+          question,
+          user: { name: auth.user.name },
+          chunks,
+        });
+        usage = result.usage;
+        answer = enforceGrounding(result.draft, chunks);
+        if (answer.refused) refusalReason = "ungrounded";
+      } catch (error) {
+        if (isUpstreamError(error) && error.kind === "llm-content-filtered") {
+          answer = refusal(deps.provider.promptVersion);
+          refusalReason = "content-filter";
+          upstreamDetail = error.detail;
+        } else {
+          throw error;
+        }
+      }
     }
 
     deps.logger.info("ask.completed", {
@@ -117,12 +133,19 @@ export async function handleAsk(
       contextChars: chunks.reduce((sum, chunk) => sum + chunk.text.length, 0),
       citationCount: answer.citations.length,
       refused: answer.refused,
+      ...(refusalReason ? { refusalReason } : {}),
+      ...(upstreamDetail?.status !== undefined ? { upstreamStatus: upstreamDetail.status } : {}),
+      ...(upstreamDetail?.code !== undefined ? { upstreamCode: upstreamDetail.code } : {}),
+      ...(upstreamDetail?.innerCode !== undefined
+        ? { upstreamInnerCode: upstreamDetail.innerCode }
+        : {}),
       ...(usage ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : {}),
     });
     return respond(200, answer);
   } catch (error) {
     if (isUpstreamError(error)) {
-      const mapped = UPSTREAM_RESPONSES[error.kind];
+      const mapped =
+        UPSTREAM_RESPONSES[error.kind as Exclude<UpstreamErrorKind, "llm-content-filtered">];
       deps.logger.warn("ask.upstream-failed", {
         correlationId,
         kind: error.kind,

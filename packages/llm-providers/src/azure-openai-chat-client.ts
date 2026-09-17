@@ -40,6 +40,19 @@ export function describeOpenAiError(error: unknown): UpstreamErrorDetail {
   return detail;
 }
 
+/** Classifies any error from `chat.completions.create` into a stable UpstreamError. */
+export function toUpstreamError(error: unknown): UpstreamError {
+  const detail = describeOpenAiError(error);
+  if (detail.contentFilter === true) {
+    return new UpstreamError(
+      "llm-content-filtered",
+      "Azure OpenAI content filter blocked the request",
+      detail,
+    );
+  }
+  return new UpstreamError("llm-unavailable", "Azure OpenAI request failed", detail);
+}
+
 export interface AzureOpenAiChatClientOptions {
   endpoint: string;
   deployment: string;
@@ -94,11 +107,7 @@ export function createAzureOpenAiChatClient(options: AzureOpenAiChatClientOption
             : {}),
         };
       } catch (error) {
-        throw new UpstreamError(
-          "llm-unavailable",
-          "Azure OpenAI request failed",
-          describeOpenAiError(error),
-        );
+        throw toUpstreamError(error);
       }
     },
   };

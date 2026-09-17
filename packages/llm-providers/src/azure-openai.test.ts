@@ -105,6 +105,17 @@ describe("AzureOpenAiProvider", () => {
       detail: { errorName: "RateLimitError", status: 429 },
     });
   });
+
+  it("propagates an llm-content-filtered UpstreamError from the chat client without retrying", async () => {
+    const { client, requests } = chat([
+      new UpstreamError("llm-content-filtered", "blocked", { status: 400, code: "content_filter" }),
+    ]);
+    await expect(provider(client).generate(input)).rejects.toMatchObject({
+      kind: "llm-content-filtered",
+      detail: { status: 400, code: "content_filter" },
+    });
+    expect(requests).toHaveLength(1);
+  });
 });
 
 describe("buildUserMessage", () => {

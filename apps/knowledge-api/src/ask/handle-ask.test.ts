@@ -110,13 +110,30 @@ describe("handleAsk", () => {
   });
 
   it("refuses without calling the model when nothing relevant is retrieved", async () => {
-    const { deps, generate } = setup({
+    const { deps, generate, logs } = setup({
       retriever: { retrieve: () => Promise.resolve({ chunks: [], documentCount: 0 }) },
     });
     const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
     expect(res.status).toBe(200);
     expect(res.jsonBody).toEqual(refusal("mock"));
     expect(generate).not.toHaveBeenCalled();
+    expect(logs).toContainEqual({
+      level: "info",
+      event: "ask.completed",
+      data: {
+        correlationId: "corr-1",
+        status: 200,
+        questionLength: QUESTION.length,
+        durationMs: 25,
+        promptVersion: "mock",
+        documentCount: 0,
+        chunkCount: 0,
+        contextChars: 0,
+        citationCount: 0,
+        refused: true,
+        refusalReason: "no-relevant-documents",
+      },
+    });
   });
 
   it("refuses when every citation is invented", async () => {
@@ -132,9 +149,26 @@ describe("handleAsk", () => {
           },
         }),
     };
-    const { deps } = setup({ provider: inventing });
+    const { deps, logs } = setup({ provider: inventing });
     const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
     expect(res.jsonBody).toEqual(refusal("v1"));
+    expect(logs).toContainEqual({
+      level: "info",
+      event: "ask.completed",
+      data: {
+        correlationId: "corr-1",
+        status: 200,
+        questionLength: QUESTION.length,
+        durationMs: 25,
+        promptVersion: "v1",
+        documentCount: 1,
+        chunkCount: 1,
+        contextChars: SECRET_DOC_TEXT.length,
+        citationCount: 0,
+        refused: true,
+        refusalReason: "ungrounded",
+      },
+    });
   });
 
   it("returns 401 without calling dependencies when the token is invalid", async () => {
@@ -205,6 +239,44 @@ describe("handleAsk", () => {
         errorName: "BadRequestError",
         status: 400,
         code: "content_filter",
+      },
+    });
+  });
+
+  it("returns a safe refusal (200) when the model call is blocked by the content filter", async () => {
+    const filtered: LlmProvider = {
+      promptVersion: "mock",
+      generate: () =>
+        Promise.reject(
+          new UpstreamError("llm-content-filtered", "x", {
+            status: 400,
+            code: "content_filter",
+            innerCode: "ResponsibleAIPolicyViolation",
+          }),
+        ),
+    };
+    const { deps, logs } = setup({ provider: filtered });
+    const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
+    expect(res.status).toBe(200);
+    expect(res.jsonBody).toEqual(refusal("mock"));
+    expect(logs).toContainEqual({
+      level: "info",
+      event: "ask.completed",
+      data: {
+        correlationId: "corr-1",
+        status: 200,
+        questionLength: QUESTION.length,
+        durationMs: 25,
+        promptVersion: "mock",
+        documentCount: 1,
+        chunkCount: 1,
+        contextChars: SECRET_DOC_TEXT.length,
+        citationCount: 0,
+        refused: true,
+        refusalReason: "content-filter",
+        upstreamStatus: 400,
+        upstreamCode: "content_filter",
+        upstreamInnerCode: "ResponsibleAIPolicyViolation",
       },
     });
   });

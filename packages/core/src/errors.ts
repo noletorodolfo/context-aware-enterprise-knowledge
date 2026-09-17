@@ -1,5 +1,9 @@
 export type UpstreamErrorKind =
-  "consent-required" | "upstream" | "llm-unavailable" | "llm-invalid-output";
+  | "consent-required"
+  | "upstream"
+  | "llm-unavailable"
+  | "llm-invalid-output"
+  | "llm-content-filtered";
 
 /** Content-free diagnostic fields (no message/body/prompt text) attached to an UpstreamError. */
 export type UpstreamErrorDetail = Record<string, string | number | boolean>;

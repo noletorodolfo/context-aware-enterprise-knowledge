@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeOpenAiError } from "./azure-openai-chat-client.js";
+import { describeOpenAiError, toUpstreamError } from "./azure-openai-chat-client.js";
 
 describe("describeOpenAiError", () => {
   it("describes a plain Error by its name only", () => {
@@ -38,5 +38,46 @@ describe("describeOpenAiError", () => {
 
   it("describes a non-Error value", () => {
     expect(describeOpenAiError("some string failure")).toEqual({ errorName: "String" });
+  });
+});
+
+describe("toUpstreamError", () => {
+  it("classifies a content-filter API error as llm-content-filtered with detail", () => {
+    const apiError = {
+      name: "BadRequestError",
+      status: 400,
+      code: "content_filter",
+      param: "prompt",
+      error: { innererror: { code: "ResponsibleAIPolicyViolation" } },
+      message: "secret prompt text",
+    };
+    const upstreamError = toUpstreamError(apiError);
+    expect(upstreamError.kind).toBe("llm-content-filtered");
+    expect(upstreamError.detail).toEqual({
+      errorName: "BadRequestError",
+      status: 400,
+      code: "content_filter",
+      param: "prompt",
+      contentFilter: true,
+      innerCode: "ResponsibleAIPolicyViolation",
+    });
+    expect(upstreamError.message).not.toContain("secret prompt text");
+  });
+
+  it("classifies a 429 rate limit error as llm-unavailable", () => {
+    const apiError = { name: "RateLimitError", status: 429, code: "rate_limit_exceeded" };
+    const upstreamError = toUpstreamError(apiError);
+    expect(upstreamError.kind).toBe("llm-unavailable");
+    expect(upstreamError.detail).toEqual({
+      errorName: "RateLimitError",
+      status: 429,
+      code: "rate_limit_exceeded",
+    });
+  });
+
+  it("classifies a plain Error as llm-unavailable", () => {
+    const upstreamError = toUpstreamError(new Error("socket hang up"));
+    expect(upstreamError.kind).toBe("llm-unavailable");
+    expect(upstreamError.detail).toEqual({ errorName: "Error" });
   });
 });
