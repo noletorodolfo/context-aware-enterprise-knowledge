@@ -16,6 +16,8 @@ export interface AskRequest {
 export interface CitationDto {
   chunkId: string;
   quote: string;
+  title: string;
+  url: string;
 }
 
 export interface AskResponse {

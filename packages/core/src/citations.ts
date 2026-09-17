@@ -1,17 +1,24 @@
-import type { Answer, Chunk, Citation } from "./model.js";
+import type { Answer, Chunk, Citation, CitationDraft, DraftAnswer } from "./model.js";
+
+/** Shown to end users (pt-BR) whenever the documents do not support an answer. */
+export const REFUSAL_TEXT = "Não encontrei essa informação nos documentos disponíveis para você.";
 
 export interface CitationCheck {
   valid: Citation[];
-  rejected: { citation: Citation; reason: "unknown-chunk" | "quote-not-found" }[];
+  rejected: { citation: CitationDraft; reason: "unknown-chunk" | "quote-not-found" }[];
 }
 
 const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
+export function refusal(promptVersion: string): Answer {
+  return { text: REFUSAL_TEXT, citations: [], refused: true, promptVersion };
+}
+
 /**
  * Ensures each citation points to an excerpt that was actually retrieved and that the
- * citation exists literally in that excerpt. Citations fabricated by the model are discarded.
+ * quote exists literally in that excerpt. Valid citations gain the chunk's title and url.
  */
-export function checkCitations(citations: Citation[], retrieved: Chunk[]): CitationCheck {
+export function checkCitations(citations: CitationDraft[], retrieved: Chunk[]): CitationCheck {
   const byId = new Map(retrieved.map((c) => [c.id, c]));
   const result: CitationCheck = { valid: [], rejected: [] };
 
@@ -22,21 +29,21 @@ export function checkCitations(citations: Citation[], retrieved: Chunk[]): Citat
     } else if (!normalize(chunk.text).includes(normalize(citation.quote))) {
       result.rejected.push({ citation, reason: "quote-not-found" });
     } else {
-      result.valid.push(citation);
+      result.valid.push({ ...citation, title: chunk.title, url: chunk.url });
     }
   }
   return result;
 }
 
-/** Applies the check to the answer: if no citation survives, the answer becomes a refusal. */
-export function enforceGrounding(answer: Answer, retrieved: Chunk[]): Answer {
-  if (answer.refused) return answer;
-  const { valid } = checkCitations(answer.citations, retrieved);
-  if (valid.length > 0) return { ...answer, citations: valid };
+/** Grounds a model draft: without at least one valid citation the answer becomes the refusal. */
+export function enforceGrounding(draft: DraftAnswer, retrieved: Chunk[]): Answer {
+  if (draft.refused) return refusal(draft.promptVersion);
+  const { valid } = checkCitations(draft.citations, retrieved);
+  if (valid.length === 0) return refusal(draft.promptVersion);
   return {
-    ...answer,
-    text: "Não encontrei essa informação nos documentos disponíveis para você.",
-    citations: [],
-    refused: true,
+    text: draft.text,
+    citations: valid,
+    refused: false,
+    promptVersion: draft.promptVersion,
   };
 }

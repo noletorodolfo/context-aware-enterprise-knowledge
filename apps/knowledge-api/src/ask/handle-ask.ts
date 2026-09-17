@@ -67,7 +67,12 @@ export async function handleAsk(
   const question: Question = { text, page };
 
   try {
-    const answer = await deps.provider.generate({ question, user: { name: auth.user.name } });
+    const { draft } = await deps.provider.generate({
+      question,
+      user: { name: auth.user.name },
+      chunks: [],
+    });
+    const answer = { ...draft, citations: [] };
     deps.logger.info("ask.completed", {
       correlationId,
       status: 200,

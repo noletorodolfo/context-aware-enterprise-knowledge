@@ -21,9 +21,24 @@ export interface Chunk {
   score: number;
 }
 
-export interface Citation {
+/** Citation as produced by the model: which chunk and the verbatim excerpt. */
+export interface CitationDraft {
   chunkId: string;
   quote: string;
+}
+
+/** Citation returned to clients, validated against a retrieved chunk. */
+export interface Citation extends CitationDraft {
+  title: string;
+  url: string;
+}
+
+/** Model output before grounding: citations are not yet validated. */
+export interface DraftAnswer {
+  text: string;
+  citations: CitationDraft[];
+  refused: boolean;
+  promptVersion: string;
 }
 
 export interface Answer {
