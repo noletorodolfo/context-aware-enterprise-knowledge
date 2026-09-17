@@ -129,7 +129,7 @@ flowchart LR
 | 003 | `AadHttpClient` + API protected by Entra ID                                                                 | Manual MSAL, API key, anonymous function                                |
 | 004 | Permission filtering via Graph Search (OBO) in the MVP                                                      | Custom index with ACLs, no filtering                                    |
 | 005 | `LlmProvider` and `Retriever` abstractions                                                                  | Coupling directly to one provider                                       |
-| 006 | GitHub Models/Ollama in the MVP, Azure OpenAI documented as the target                                      | Azure OpenAI from the start (cost), mock only (no AI value)             |
+| 006 | Azure OpenAI (Global Standard, managed identity) as primary provider; mock for tests                        | GitHub Models (rate limits, prototype terms), Ollama                    |
 | 007 | Zero secrets: Managed Identity as federated credential and OIDC in GitHub Actions                           | Client secret in Key Vault, secrets in GitHub                           |
 | 008 | Event-driven ingestion with a queue and idempotent indexer                                                  | Scheduled crawler, AI Search's native indexer                           |
 | 009 | OpenTelemetry + W3C `traceparent`                                                                           | Custom correlation ID                                                   |
@@ -299,7 +299,7 @@ Goal: all **Must** items done within 7 days. Should and Could come later, with n
 - GitHub Models `LlmProvider`, with prompt v1 and validated JSON output.
 - Citations validated against the retrieved excerpts. Refusal when there is no context.
 
-**Done when:** A and B ask the same question and get different, correct citations, and the no-leak test passes.
+**Done when:** A and B ask the same question and get different, correct citations, and the no-leak test passes. When retrieval surfaces only content Azure OpenAI's content filter rejects, the API returns a safe refusal instead of an error.
 
 ### Phase 3 — Governance and quality · Must · ~1 day
 
@@ -345,18 +345,21 @@ _Buffer: ~0.5 day._
 
 ## 12. Costs
 
-| Resource                | Tier                             | Expected cost |
-| ----------------------- | -------------------------------- | ------------- |
-| SharePoint / Entra ID   | Partner company's tenant         | R$ 0          |
-| Azure Functions         | Consumption (monthly free grant) | R$ 0          |
-| Application Insights    | Free ingestion quota             | R$ 0          |
-| Azure AI Search         | Free                             | R$ 0          |
-| Storage (state, queues) | Standard LRS                     | cents         |
-| Key Vault               | Standard                         | cents         |
-| GitHub Models / Ollama  | Free with rate limit / local     | R$ 0          |
-| GitHub Actions          | Public repository                | R$ 0          |
+| Resource                | Tier                             | Expected cost        |
+| ----------------------- | -------------------------------- | -------------------- |
+| SharePoint / Entra ID   | Partner company's tenant         | R$ 0                 |
+| Azure Functions         | Consumption (monthly free grant) | R$ 0                 |
+| Application Insights    | Free ingestion quota             | R$ 0                 |
+| Azure AI Search         | Free                             | R$ 0                 |
+| Storage (state, queues) | Standard LRS                     | cents                |
+| Key Vault               | Standard                         | cents                |
+| GitHub Models / Ollama  | Free with rate limit / local     | R$ 0                 |
+| GitHub Actions          | Public repository                | R$ 0                 |
+| Azure OpenAI            | Global Standard, pay per token   | cents for demo usage |
 
-Controls: **R$ 10 budget alert** on the subscription and `project`/`owner` tags on every resource.
+Controls: **R$ 10 budget alert** on the subscription, a dedicated **USD 5
+budget alert** on the Azure OpenAI resource group (`dev` environment), and
+`project`/`owner` tags on every resource.
 `docs/architecture.md` includes the cost estimate with Azure OpenAI at real volume (e.g., 500 users).
 
 ---
