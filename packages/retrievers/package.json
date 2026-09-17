@@ -1,0 +1,25 @@
+{
+  "name": "@kb/retrievers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Permission-aware retrieval: Microsoft Graph Search with the caller's delegated token.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@kb/core": "0.1.0",
+    "mammoth": "^1.12.3"
+  },
+  "devDependencies": {
+    "docx": "^9.7.1"
+  }
+}

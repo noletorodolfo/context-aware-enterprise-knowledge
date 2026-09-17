@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       "@kb/core": src("./packages/core/src/index.ts"),
       "@kb/llm-providers": src("./packages/llm-providers/src/index.ts"),
+      "@kb/retrievers": src("./packages/retrievers/src/index.ts"),
     },
   },
   test: {
