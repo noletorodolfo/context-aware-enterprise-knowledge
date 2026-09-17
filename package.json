@@ -16,6 +16,7 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -b && tsc -p apps/knowledge-api/tsconfig.contract.json",
     "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:spfx": "node scripts/check-spfx-installed.mjs && npm --prefix apps/spfx-assistant run test:unit",
     "lint": "eslint .",
     "format": "prettier --write .",

@@ -1,0 +1,9 @@
+{
+  "tenantId": "00000000-0000-0000-0000-000000000000",
+  "clientId": "00000000-0000-0000-0000-000000000000",
+  "apiScope": "api://00000000-0000-0000-0000-000000000000/user_impersonation",
+  "apiBaseUrl": "https://func-kb-api-dev-xxxxxx.azurewebsites.net",
+  "siteUrl": "https://contoso.sharepoint.com/sites/kb-demo",
+  "userA": "user.a@contoso.com",
+  "userB": "user.b@contoso.com"
+}

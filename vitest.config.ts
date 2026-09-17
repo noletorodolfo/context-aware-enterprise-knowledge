@@ -13,5 +13,6 @@ export default defineConfig({
   },
   test: {
     include: ["packages/**/*.test.ts", "tools/**/*.test.ts", "apps/knowledge-api/**/*.test.ts"],
+    exclude: ["**/node_modules/**", "**/e2e/**"],
   },
 });
