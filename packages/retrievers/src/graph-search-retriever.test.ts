@@ -193,4 +193,24 @@ describe("GraphSearchRetriever", () => {
       }),
     ).rejects.toMatchObject({ name: "UpstreamError", kind: "upstream" });
   });
+
+  it("attaches content-free diagnostic detail to the upstream error", async () => {
+    const { fetchFn } = fakeGraph({ search: { status: 500, json: {} } });
+    await expect(
+      new GraphSearchRetriever({ siteUrls: [SITE], fetchFn }).retrieve({
+        question: "auxílio",
+        graphToken: "t",
+      }),
+    ).rejects.toMatchObject({ detail: { status: 500, stage: "search" } });
+
+    const { fetchFn: timeoutFetch } = fakeGraph({
+      throws: new DOMException("timeout", "TimeoutError"),
+    });
+    await expect(
+      new GraphSearchRetriever({ siteUrls: [SITE], fetchFn: timeoutFetch }).retrieve({
+        question: "auxílio",
+        graphToken: "t",
+      }),
+    ).rejects.toMatchObject({ detail: { stage: "search", errorName: "TimeoutError" } });
+  });
 });

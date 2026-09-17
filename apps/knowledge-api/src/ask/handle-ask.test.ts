@@ -181,6 +181,34 @@ describe("handleAsk", () => {
     });
   });
 
+  it("includes content-free upstream error detail in the log when present", async () => {
+    const { deps, logs } = setup({
+      exchangeToken: () =>
+        Promise.reject(
+          new UpstreamError("llm-unavailable", "x", {
+            errorName: "BadRequestError",
+            status: 400,
+            code: "content_filter",
+          }),
+        ),
+    });
+    const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
+    expect(res.status).toBe(503);
+    expect(res.jsonBody).toEqual({ error: "upstream-unavailable", correlationId: "corr-1" });
+    expect(logs).toContainEqual({
+      level: "warn",
+      event: "ask.upstream-failed",
+      data: {
+        correlationId: "corr-1",
+        kind: "llm-unavailable",
+        durationMs: 25,
+        errorName: "BadRequestError",
+        status: 400,
+        code: "content_filter",
+      },
+    });
+  });
+
   it("returns 500 with correlation id for unexpected errors", async () => {
     const { deps, logs } = setup({
       retriever: { retrieve: () => Promise.reject(new TypeError("boom at secret/path.ts:12")) },

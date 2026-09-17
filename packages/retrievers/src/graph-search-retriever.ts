@@ -109,27 +109,41 @@ export class GraphSearchRetriever implements Retriever {
     return this.options.siteUrls.some((site) => url.startsWith(`${site}/`));
   }
 
-  private async request(url: string, init: RequestInit): Promise<Response> {
+  private async request(
+    url: string,
+    init: RequestInit,
+    stage: "search" | "download",
+  ): Promise<Response> {
     try {
       return await this.options.fetchFn(url, {
         ...init,
         signal: AbortSignal.timeout(this.options.timeoutMs),
       });
-    } catch {
-      throw new UpstreamError("upstream", "Microsoft Graph request failed");
+    } catch (error) {
+      throw new UpstreamError("upstream", "Microsoft Graph request failed", {
+        stage,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
     }
   }
 
   private async search(queryString: string, graphToken: string): Promise<DriveItemHit[]> {
-    const response = await this.request(`${GRAPH}/search/query`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${graphToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        requests: [{ entityTypes: ["driveItem"], query: { queryString }, from: 0, size: 10 }],
-      }),
-    });
+    const response = await this.request(
+      `${GRAPH}/search/query`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${graphToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [{ entityTypes: ["driveItem"], query: { queryString }, from: 0, size: 10 }],
+        }),
+      },
+      "search",
+    );
     if (!response.ok)
-      throw new UpstreamError("upstream", `Graph search failed: ${response.status}`);
+      throw new UpstreamError("upstream", `Graph search failed: ${response.status}`, {
+        status: response.status,
+        stage: "search",
+      });
     const json = (await response.json()) as {
       value?: { hitsContainers?: { hits?: DriveItemHit[] }[] }[];
     };
@@ -137,13 +151,20 @@ export class GraphSearchRetriever implements Retriever {
   }
 
   private async download(driveId: string, itemId: string, graphToken: string): Promise<Section[]> {
-    const response = await this.request(`${GRAPH}/drives/${driveId}/items/${itemId}/content`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${graphToken}` },
-    });
+    const response = await this.request(
+      `${GRAPH}/drives/${driveId}/items/${itemId}/content`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${graphToken}` },
+      },
+      "download",
+    );
     if (response.status === 403 || response.status === 404) return [];
     if (!response.ok)
-      throw new UpstreamError("upstream", `Graph download failed: ${response.status}`);
+      throw new UpstreamError("upstream", `Graph download failed: ${response.status}`, {
+        status: response.status,
+        stage: "download",
+      });
     try {
       return await extractSections(Buffer.from(await response.arrayBuffer()));
     } catch {

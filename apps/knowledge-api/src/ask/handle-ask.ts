@@ -127,6 +127,7 @@ export async function handleAsk(
         correlationId,
         kind: error.kind,
         durationMs: deps.now() - startedAt,
+        ...(error.detail ?? {}),
       });
       return respond(mapped.status, { error: mapped.error, correlationId });
     }

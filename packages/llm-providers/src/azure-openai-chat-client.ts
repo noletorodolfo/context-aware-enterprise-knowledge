@@ -1,7 +1,44 @@
 import { getBearerTokenProvider, type TokenCredential } from "@azure/identity";
-import { UpstreamError } from "@kb/core";
+import { UpstreamError, type UpstreamErrorDetail } from "@kb/core";
 import { AzureOpenAI } from "openai";
 import type { ChatClient } from "./azure-openai.js";
+
+interface ApiErrorShape {
+  name?: unknown;
+  status?: unknown;
+  code?: unknown;
+  type?: unknown;
+  param?: unknown;
+  error?: { innererror?: { code?: unknown } };
+}
+
+/**
+ * Content-free diagnostic detail extracted from an `openai` SDK error (or anything else the
+ * `chat.completions.create` call might throw, e.g. a token-acquisition failure). Never includes
+ * `message`, request/response bodies, prompts or headers.
+ */
+export function describeOpenAiError(error: unknown): UpstreamErrorDetail {
+  const nameProperty = (error as ApiErrorShape | null)?.name;
+  const errorName =
+    typeof nameProperty === "string"
+      ? nameProperty
+      : ((error as { constructor?: { name?: string } } | null)?.constructor?.name ?? "Unknown");
+  const detail: UpstreamErrorDetail = { errorName };
+
+  const shape = error as ApiErrorShape;
+  if (typeof shape?.status === "number") detail.status = shape.status;
+  if (typeof shape?.code === "string") detail.code = shape.code;
+  if (typeof shape?.type === "string") detail.type = shape.type;
+  if (typeof shape?.param === "string") detail.param = shape.param;
+
+  const innerCode = shape?.error?.innererror?.code;
+  if (shape?.code === "content_filter" || innerCode === "ResponsibleAIPolicyViolation") {
+    detail.contentFilter = true;
+    if (typeof innerCode === "string") detail.innerCode = innerCode;
+  }
+
+  return detail;
+}
 
 export interface AzureOpenAiChatClientOptions {
   endpoint: string;
@@ -56,8 +93,12 @@ export function createAzureOpenAiChatClient(options: AzureOpenAiChatClientOption
               }
             : {}),
         };
-      } catch {
-        throw new UpstreamError("llm-unavailable", "Azure OpenAI request failed");
+      } catch (error) {
+        throw new UpstreamError(
+          "llm-unavailable",
+          "Azure OpenAI request failed",
+          describeOpenAiError(error),
+        );
       }
     },
   };

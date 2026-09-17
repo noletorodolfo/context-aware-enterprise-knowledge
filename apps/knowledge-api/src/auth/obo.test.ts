@@ -101,4 +101,29 @@ describe("createOboExchanger", () => {
     });
     await expect(failingAssertion("t", "oid")).rejects.toMatchObject({ kind: "upstream" });
   });
+
+  it("attaches content-free diagnostic detail to upstream errors", async () => {
+    const { fetchFn } = fakeFetch([
+      { status: 400, json: { error: "invalid_grant", error_codes: [70000] } },
+    ]);
+    await expect(exchanger(fetchFn)("t", "oid")).rejects.toMatchObject({
+      detail: { status: 400, oauthError: "invalid_grant", aadstsCodes: "70000" },
+    });
+
+    const { fetchFn: networkFetch } = fakeFetch(new TypeError("fetch failed"));
+    await expect(exchanger(networkFetch)("t", "oid")).rejects.toMatchObject({
+      detail: { errorName: "TypeError" },
+    });
+
+    const failingAssertion = createOboExchanger({
+      tenantId: "tenant-1",
+      clientId: "client-1",
+      scopes: GRAPH_DELEGATED_SCOPES,
+      createAssertion: () => Promise.reject(new Error("Key Vault 403")),
+      fetchFn: fakeFetch([]).fetchFn,
+    });
+    await expect(failingAssertion("t", "oid")).rejects.toMatchObject({
+      detail: { stage: "assertion", errorName: "Error" },
+    });
+  });
 });

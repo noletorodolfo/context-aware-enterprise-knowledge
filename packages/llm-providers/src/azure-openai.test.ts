@@ -93,6 +93,16 @@ describe("AzureOpenAiProvider", () => {
     const broken = chat([new Error("socket hang up")]);
     await expect(provider(broken.client).generate(input)).rejects.toMatchObject({
       kind: "llm-unavailable",
+      detail: { errorName: "Error" },
+    });
+  });
+
+  it("preserves the original detail when the chat client already threw an UpstreamError", async () => {
+    const limited = chat([
+      new UpstreamError("llm-unavailable", "429", { errorName: "RateLimitError", status: 429 }),
+    ]);
+    await expect(provider(limited.client).generate(input)).rejects.toMatchObject({
+      detail: { errorName: "RateLimitError", status: 429 },
     });
   });
 });

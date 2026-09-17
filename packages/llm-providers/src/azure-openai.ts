@@ -107,7 +107,9 @@ export class AzureOpenAiProvider implements LlmProvider {
         response = await this.options.chat.complete(request);
       } catch (error) {
         if (isUpstreamError(error)) throw error;
-        throw new UpstreamError("llm-unavailable", "Azure OpenAI request failed");
+        throw new UpstreamError("llm-unavailable", "Azure OpenAI request failed", {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        });
       }
 
       let parsed: z.infer<typeof answerSchema> | undefined;

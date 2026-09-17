@@ -43,8 +43,11 @@ export function createOboExchanger(options: OboOptions): TokenExchanger {
     let assertion: string;
     try {
       assertion = await options.createAssertion();
-    } catch {
-      throw new UpstreamError("upstream", "Client assertion could not be signed");
+    } catch (error) {
+      throw new UpstreamError("upstream", "Client assertion could not be signed", {
+        stage: "assertion",
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
     }
 
     let response: Response;
@@ -66,8 +69,10 @@ export function createOboExchanger(options: OboOptions): TokenExchanger {
           signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
         },
       );
-    } catch {
-      throw new UpstreamError("upstream", "OBO request failed");
+    } catch (error) {
+      throw new UpstreamError("upstream", "OBO request failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
     }
 
     const json = (await response.json().catch(() => ({}))) as TokenResponse;
@@ -79,6 +84,11 @@ export function createOboExchanger(options: OboOptions): TokenExchanger {
       throw new UpstreamError(
         consent ? "consent-required" : "upstream",
         `OBO failed: ${json.error ?? String(response.status)}`,
+        {
+          status: response.status,
+          oauthError: json.error ?? "",
+          aadstsCodes: (json.error_codes ?? []).join(","),
+        },
       );
     }
 

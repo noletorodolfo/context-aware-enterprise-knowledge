@@ -13,4 +13,20 @@ describe("UpstreamError", () => {
     expect(isUpstreamError(new Error("x"))).toBe(false);
     expect(isUpstreamError("x")).toBe(false);
   });
+
+  it("carries an optional content-free diagnostic detail", () => {
+    const withDetail = new UpstreamError("llm-unavailable", "Azure OpenAI request failed", {
+      errorName: "APIError",
+      status: 429,
+      code: "rate_limit_exceeded",
+    });
+    expect(withDetail.detail).toEqual({
+      errorName: "APIError",
+      status: 429,
+      code: "rate_limit_exceeded",
+    });
+
+    const withoutDetail = new UpstreamError("upstream", "OBO failed");
+    expect(withoutDetail.detail).toBeUndefined();
+  });
 });
