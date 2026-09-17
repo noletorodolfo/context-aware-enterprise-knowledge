@@ -4,6 +4,11 @@
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "AzureWebJobsStorage": "",
     "TENANT_ID": "00000000-0000-0000-0000-000000000000",
-    "API_CLIENT_ID": "00000000-0000-0000-0000-000000000000"
+    "API_CLIENT_ID": "00000000-0000-0000-0000-000000000000",
+    "SEARCH_SITE_URLS": "https://contoso.sharepoint.com/sites/kb-demo",
+    "KEY_VAULT_KEY_ID": "https://kv-kb-dev-xxxxxx.vault.azure.net/keys/obo-dev",
+    "OBO_CERT_THUMBPRINT": "0000000000000000000000000000000000000000",
+    "AZURE_OPENAI_ENDPOINT": "https://oai-kb-dev-xxxxxx.openai.azure.com/",
+    "AZURE_OPENAI_DEPLOYMENT": "chat"
   }
 }

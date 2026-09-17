@@ -57,27 +57,34 @@ beforeAll(async () => {
 
 describe("createTokenValidator", () => {
   it("accepts a valid token and returns the user", async () => {
-    const result = await validate(`Bearer ${await sign()}`);
-    expect(result).toEqual({ ok: true, user: { objectId: "user-object-id", name: "Test User A" } });
+    const token = await sign();
+    const result = await validate(`Bearer ${token}`);
+    expect(result).toEqual({
+      ok: true,
+      user: { objectId: "user-object-id", name: "Test User A" },
+      token,
+    });
   });
 
   it("falls back to preferred_username when name is absent", async () => {
     const { name: _name, ...claims } = baseClaims;
-    const result = await validate(
-      `Bearer ${await sign({ ...claims, preferred_username: "a@contoso.com" })}`,
-    );
+    const token = await sign({ ...claims, preferred_username: "a@contoso.com" });
+    const result = await validate(`Bearer ${token}`);
     expect(result).toEqual({
       ok: true,
       user: { objectId: "user-object-id", name: "a@contoso.com" },
+      token,
     });
   });
 
   it('falls back to "usuário" when neither name nor preferred_username is present', async () => {
     const { name: _name, ...claims } = baseClaims;
-    const result = await validate(`Bearer ${await sign(claims)}`);
+    const token = await sign(claims);
+    const result = await validate(`Bearer ${token}`);
     expect(result).toEqual({
       ok: true,
       user: { objectId: "user-object-id", name: "usuário" },
+      token,
     });
   });
 

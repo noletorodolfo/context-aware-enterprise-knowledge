@@ -31,6 +31,7 @@ await build({
   target: "node22",
   format: "cjs",
   sourcemap: true,
+  loader: { ".md": "text" },
   external: ["@azure/functions-core"], // provided by the Functions Node.js worker
 });
 
