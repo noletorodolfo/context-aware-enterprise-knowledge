@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { KnowledgeApiClient, type HttpPoster } from "../src/api/KnowledgeApiClient";
+import {
+  DEFAULT_TIMEOUT_MS,
+  KnowledgeApiClient,
+  type HttpPoster,
+} from "../src/api/KnowledgeApiClient";
 import { errorMessages } from "../src/api/messages";
 import { newTraceparent } from "../src/api/traceparent";
 import type { AskRequest, AskResponse } from "../src/contract";
@@ -58,7 +62,7 @@ describe("KnowledgeApiClient", () => {
   it.each([
     [400, "invalid-request"],
     [401, "unauthorized"],
-    [403, "unauthorized"],
+    [403, "not-configured"],
     [500, "server-error"],
     [502, "unavailable"],
     [503, "unavailable"],
@@ -66,6 +70,15 @@ describe("KnowledgeApiClient", () => {
     [404, "server-error"],
   ] as const)("maps HTTP %i to %s", async (status, error) => {
     expect(await client(poster({ status })).ask(request)).toEqual({ ok: false, error });
+  });
+
+  it("maps a 502 with invalid-model-output to server-error", async () => {
+    const http = poster({ status: 502, body: { error: "invalid-model-output", correlationId: "c" } });
+    expect(await client(http).ask(request)).toEqual({ ok: false, error: "server-error" });
+  });
+
+  it("uses a 45 second default timeout", () => {
+    expect(DEFAULT_TIMEOUT_MS).toBe(45000);
   });
 
   it("maps a network failure to unavailable", async () => {

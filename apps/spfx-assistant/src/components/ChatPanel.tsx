@@ -2,7 +2,7 @@ import * as React from "react";
 import { Badge, Button, Spinner, Textarea } from "@fluentui/react-components";
 import type { AskClient } from "../api/KnowledgeApiClient";
 import { errorMessages, MAX_QUESTION_LENGTH } from "../api/messages";
-import type { PageContextDto } from "../contract";
+import type { CitationDto, PageContextDto } from "../contract";
 
 export interface ChatPanelProps {
   id: string;
@@ -13,7 +13,7 @@ export interface ChatPanelProps {
 
 type Message =
   | { kind: "question"; text: string }
-  | { kind: "answer"; text: string; isMock: boolean }
+  | { kind: "answer"; text: string; isMock: boolean; refused: boolean; citations: CitationDto[] }
   | { kind: "error"; text: string; retryQuestion?: string };
 
 const panelStyle: React.CSSProperties = {
@@ -53,6 +53,8 @@ export function ChatPanel({ id, client, getPage, onClose }: ChatPanelProps): Rea
               kind: "answer",
               text: result.answer.text,
               isMock: result.answer.promptVersion === "mock",
+              refused: result.answer.refused,
+              citations: result.answer.citations,
             }
           : { kind: "error", text: errorMessages[result.error], retryQuestion: question },
       ]);
@@ -115,7 +117,26 @@ export function ChatPanel({ id, client, getPage, onClose }: ChatPanelProps): Rea
             {message.kind === "answer" && message.isMock && (
               <Badge appearance="outline">Resposta de teste</Badge>
             )}
+            {message.kind === "answer" && message.refused && (
+              <Badge appearance="tint" color="warning">
+                Sem resposta nos documentos
+              </Badge>
+            )}
             <p style={{ margin: "4px 0", whiteSpace: "pre-wrap" }}>{message.text}</p>
+            {message.kind === "answer" && message.citations.length > 0 && (
+              <ol aria-label="Fontes" style={{ margin: "4px 0", paddingLeft: 20 }}>
+                {message.citations.map((citation, citationIndex) => (
+                  <li key={citationIndex} style={{ marginBottom: 4 }}>
+                    <a href={citation.url} target="_blank" rel="noreferrer">
+                      {citation.title}
+                    </a>
+                    <blockquote style={{ margin: "2px 0 0", fontStyle: "italic" }}>
+                      “{citation.quote}”
+                    </blockquote>
+                  </li>
+                ))}
+              </ol>
+            )}
             {message.kind === "error" && message.retryQuestion !== undefined && (
               <Button
                 size="small"

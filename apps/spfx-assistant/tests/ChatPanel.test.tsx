@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AskClient, AskResult } from "../src/api/KnowledgeApiClient";
 import { ChatPanel } from "../src/components/ChatPanel";
@@ -126,6 +126,53 @@ describe("ChatPanel", () => {
     const { input } = renderPanel(client);
     ask(input, "   ");
     expect(client.ask).not.toHaveBeenCalled();
+  });
+
+  it("renders numbered citations with document links and quotes", async () => {
+    const client = fakeClient({
+      ok: true,
+      answer: {
+        text: "R$ 150,00 por mês.",
+        citations: [
+          {
+            chunkId: "a#1",
+            quote: "auxílio home office de R$ 150,00",
+            title: "politica-home-office",
+            url: "https://contoso.sharepoint.com/sites/kb-demo/Politicas/politica-home-office.docx",
+          },
+        ],
+        refused: false,
+        promptVersion: "v1",
+      },
+    });
+    const { input } = renderPanel(client);
+    ask(input, "Qual o auxílio?");
+
+    const sources = await screen.findByRole("list", { name: "Fontes" });
+    const link = within(sources).getByRole("link", { name: "politica-home-office" });
+    expect(link.getAttribute("href")).toBe(
+      "https://contoso.sharepoint.com/sites/kb-demo/Politicas/politica-home-office.docx",
+    );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(sources.textContent).toContain("auxílio home office de R$ 150,00");
+    expect(screen.queryByText("Resposta de teste")).toBeNull();
+  });
+
+  it("marks refusals", async () => {
+    const client = fakeClient({
+      ok: true,
+      answer: {
+        text: "Não encontrei essa informação nos documentos disponíveis para você.",
+        citations: [],
+        refused: true,
+        promptVersion: "v1",
+      },
+    });
+    const { input } = renderPanel(client);
+    ask(input, "Qual a faixa salarial?");
+
+    expect(await screen.findByText("Sem resposta nos documentos")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Fontes" })).toBeNull();
   });
 });
 

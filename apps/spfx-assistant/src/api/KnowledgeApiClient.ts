@@ -23,13 +23,16 @@ export interface KnowledgeApiClientOptions {
   newTraceparent?: () => string;
 }
 
+export const DEFAULT_TIMEOUT_MS = 45000;
+
 const TIMEOUT = Symbol("timeout");
 const TOKEN_ERROR = /AADSTS|consent_required|interaction_required|login_required|TokenRenewal/i;
 
-/** 403 and any status not explicitly listed (e.g. 404) intentionally fall back to a broader bucket. */
+/** 403 means the API cannot act for the user (consent); unlisted statuses fall back to server-error. */
 function statusToError(status: number): AskErrorKind {
   if (status === 400) return "invalid-request";
-  if (status === 401 || status === 403) return "unauthorized";
+  if (status === 401) return "unauthorized";
+  if (status === 403) return "not-configured";
   if (status === 502 || status === 503 || status === 504) return "unavailable";
   return "server-error";
 }
@@ -49,7 +52,7 @@ export class KnowledgeApiClient implements AskClient {
       return { ok: false, error: "not-configured" };
     }
 
-    const timeoutMs = this.options.timeoutMs ?? 30000;
+    const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<typeof TIMEOUT>((resolve) => {
       timer = setTimeout(() => resolve(TIMEOUT), timeoutMs);
@@ -75,6 +78,10 @@ export class KnowledgeApiClient implements AskClient {
     clearTimeout(timer);
 
     if (response === TIMEOUT) return { ok: false, error: "unavailable" };
+    if (response.status === 502) {
+      const body = (await response.json().catch(() => undefined)) as { error?: string } | undefined;
+      if (body?.error === "invalid-model-output") return { ok: false, error: "server-error" };
+    }
     if (response.status !== 200) return { ok: false, error: statusToError(response.status) };
 
     try {
