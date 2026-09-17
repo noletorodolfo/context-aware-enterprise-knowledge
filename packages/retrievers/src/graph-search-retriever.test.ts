@@ -4,17 +4,23 @@ import { GraphSearchRetriever } from "./graph-search-retriever.js";
 
 const SITE = "https://contoso.sharepoint.com/sites/kb-demo";
 
-const hit = (id: string, name: string, webUrl: string, size = 1000) => ({
-  hitId: id,
-  resource: {
-    "@odata.type": "#microsoft.graph.driveItem",
-    id,
-    name,
-    webUrl,
-    size,
-    parentReference: { driveId: `drive-${id}` },
-  },
-});
+// A trailing `...sizeArgs` (instead of a plain `size = 1000` default parameter) lets callers pass
+// `undefined` explicitly to omit `size` from the resource, distinct from not passing it at all
+// (which still defaults to 1000): a default parameter alone can't tell those two cases apart.
+const hit = (id: string, name: string, webUrl: string, ...sizeArgs: [size?: number]) => {
+  const size = sizeArgs.length === 0 ? 1000 : sizeArgs[0];
+  return {
+    hitId: id,
+    resource: {
+      "@odata.type": "#microsoft.graph.driveItem",
+      id,
+      name,
+      webUrl,
+      ...(size === undefined ? {} : { size }),
+      parentReference: { driveId: `drive-${id}` },
+    },
+  };
+};
 
 async function docx(heading: string, body: string): Promise<ArrayBuffer> {
   const buffer = await Packer.toBuffer(
@@ -134,6 +140,34 @@ describe("GraphSearchRetriever", () => {
       "https://graph.microsoft.com/v1.0/drives/drive-ok/items/ok/content",
     ]);
     expect(result.documentCount).toBe(3);
+    expect(result.chunks.map((c) => c.docId)).toEqual(["ok"]);
+  });
+
+  it("skips documents with unknown size and still downloads in-scope documents within the limit", async () => {
+    const body = await docx("Auxílio", "auxílio home office.");
+    const { requests, fetchFn } = fakeGraph({
+      search: {
+        status: 200,
+        json: searchResult([
+          hit("unknown-size", "unknown.docx", `${SITE}/D/unknown.docx`, undefined),
+          hit("ok", "ok.docx", `${SITE}/D/ok.docx`, 1000),
+        ]),
+      },
+      files: {
+        "unknown-size": { status: 200, body },
+        ok: { status: 200, body },
+      },
+    });
+
+    const result = await new GraphSearchRetriever({ siteUrls: [SITE], fetchFn }).retrieve({
+      question: "auxílio",
+      graphToken: "t",
+    });
+
+    const downloads = requests.slice(1).map((r) => r.url);
+    expect(downloads).toEqual([
+      "https://graph.microsoft.com/v1.0/drives/drive-ok/items/ok/content",
+    ]);
     expect(result.chunks.map((c) => c.docId)).toEqual(["ok"]);
   });
 

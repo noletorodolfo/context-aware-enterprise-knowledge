@@ -84,7 +84,7 @@ export class GraphSearchRetriever implements Retriever {
 
     const candidates: CandidateSection[] = [];
     for (const doc of documents) {
-      if ((doc.size ?? 0) > this.options.maxFileBytes) continue;
+      if (!Number.isFinite(doc.size) || (doc.size ?? 0) > this.options.maxFileBytes) continue;
       const sections = await this.download(doc.parentReference.driveId ?? "", doc.id, graphToken);
       sections.forEach((section, sectionIndex) =>
         candidates.push({
