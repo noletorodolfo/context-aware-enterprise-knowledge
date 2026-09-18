@@ -73,8 +73,8 @@ flowchart LR
         RET -- "OBO: user permissions" --> GS[Microsoft Graph Search]
         RET -- "security filter" --> AIS[Azure AI Search<br/>Free tier]
         ORC --> LLM{LlmProvider}
-        LLM --> GHM[GitHub Models]
-        LLM --> OLL[Local Ollama]
+        LLM --> AOAI[Azure OpenAI]
+        LLM --> OLL[Local Ollama - optional]
         LLM --> MOCK[Deterministic mock]
     end
 
@@ -122,19 +122,19 @@ flowchart LR
 
 ## 4. Architecture decisions (ADRs)
 
-| ADR | Decision                                                                                                    | Alternatives considered                                                 |
-| --- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| 001 | Custom solution instead of Microsoft 365 Copilot                                                            | Copilot, Copilot Studio                                                 |
-| 002 | SPFx Application Customizer with `Bottom` placeholder                                                       | Web part on every page, iframe, direct DOM injection                    |
-| 003 | `AadHttpClient` + API protected by Entra ID                                                                 | Manual MSAL, API key, anonymous function                                |
-| 004 | Permission filtering via Graph Search (OBO) in the MVP                                                      | Custom index with ACLs, no filtering                                    |
-| 005 | `LlmProvider` and `Retriever` abstractions                                                                  | Coupling directly to one provider                                       |
-| 006 | Azure OpenAI (Global Standard, managed identity) as primary provider; mock for tests                        | GitHub Models (rate limits, prototype terms), Ollama                    |
-| 007 | Zero secrets: Managed Identity as federated credential and OIDC in GitHub Actions                           | Client secret in Key Vault, secrets in GitHub                           |
-| 008 | Event-driven ingestion with a queue and idempotent indexer                                                  | Scheduled crawler, AI Search's native indexer                           |
-| 009 | OpenTelemetry + W3C `traceparent`                                                                           | Custom correlation ID                                                   |
-| 010 | Terraform with remote state in Azure Storage                                                                | Bicep, ClickOps                                                         |
-| 011 | Microsoft 365 and Azure in separate tenants (identity in the company, resources in a personal subscription) | Subscription in the company's tenant, everything in the personal tenant |
+| ADR | Decision                                                                                                                                                                                                                                                                                                                  | Alternatives considered                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 001 | Custom solution instead of Microsoft 365 Copilot                                                                                                                                                                                                                                                                          | Copilot, Copilot Studio                                                 |
+| 002 | SPFx Application Customizer with `Bottom` placeholder                                                                                                                                                                                                                                                                     | Web part on every page, iframe, direct DOM injection                    |
+| 003 | `AadHttpClient` + API protected by Entra ID                                                                                                                                                                                                                                                                               | Manual MSAL, API key, anonymous function                                |
+| 004 | Permission filtering via Graph Search (OBO) in the MVP                                                                                                                                                                                                                                                                    | Custom index with ACLs, no filtering                                    |
+| 005 | `LlmProvider` and `Retriever` abstractions                                                                                                                                                                                                                                                                                | Coupling directly to one provider                                       |
+| 006 | Azure OpenAI (Global Standard, managed identity) as primary provider; mock for tests                                                                                                                                                                                                                                      | GitHub Models (rate limits, prototype terms), Ollama                    |
+| 007 | Zero secrets: Managed Identity as federated credential and OIDC in GitHub Actions. The OBO exchange itself proves the API's identity with a Key Vault-signed certificate client assertion, since a managed identity cannot be a federated credential for an app registration in another tenant (Phase 2 spec D1, ADR-011) | Client secret in Key Vault, secrets in GitHub                           |
+| 008 | Event-driven ingestion with a queue and idempotent indexer                                                                                                                                                                                                                                                                | Scheduled crawler, AI Search's native indexer                           |
+| 009 | OpenTelemetry + W3C `traceparent`                                                                                                                                                                                                                                                                                         | Custom correlation ID                                                   |
+| 010 | Terraform with remote state in Azure Storage                                                                                                                                                                                                                                                                              | Bicep, ClickOps                                                         |
+| 011 | Microsoft 365 and Azure in separate tenants (identity in the company, resources in a personal subscription)                                                                                                                                                                                                               | Subscription in the company's tenant, everything in the personal tenant |
 
 Format: context → decision → alternatives → consequences → how to revert.
 
@@ -296,7 +296,7 @@ Goal: all **Must** items done within 7 days. Should and Could come later, with n
 ### Phase 2 — Retrieval with permissions and a real LLM · Must · ~1.5 days
 
 - OBO flow and `GraphSearchRetriever`.
-- GitHub Models `LlmProvider`, with prompt v1 and validated JSON output.
+- Azure OpenAI `LlmProvider`, with prompt v1 and validated JSON output.
 - Citations validated against the retrieved excerpts. Refusal when there is no context.
 
 **Done when:** A and B ask the same question and get different, correct citations, and the no-leak test passes. When retrieval surfaces only content Azure OpenAI's content filter rejects, the API returns a safe refusal instead of an error.
@@ -357,9 +357,8 @@ _Buffer: ~0.5 day._
 | GitHub Actions          | Public repository                | R$ 0                 |
 | Azure OpenAI            | Global Standard, pay per token   | cents for demo usage |
 
-Controls: **R$ 10 budget alert** on the subscription, a dedicated **USD 5
-budget alert** on the Azure OpenAI resource group (`dev` environment), and
-`project`/`owner` tags on every resource.
+Controls: a single **USD 5 budget alert** on the subscription
+(`infra/terraform/bootstrap`), and `project`/`owner` tags on every resource.
 `docs/architecture.md` includes the cost estimate with Azure OpenAI at real volume (e.g., 500 users).
 
 ---

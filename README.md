@@ -17,7 +17,7 @@ users are Brazilian.
 | Path                     | Content                                                                       |
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `packages/core`          | Query context domain (citations, grounding)                                   |
-| `packages/retrievers`    | `GraphSearchRetriever` and `AiSearchRetriever` abstractions                   |
+| `packages/retrievers`    | `GraphSearchRetriever` (AI Search retriever planned for Phase 6)              |
 | `packages/llm-providers` | LLM provider abstraction (Azure OpenAI, mock for tests)                       |
 | `apps/knowledge-api`     | Azure Functions API (`/api/ask`), token validation, OBO exchange              |
 | `apps/spfx-assistant`    | SharePoint Framework extension embedding the assistant                        |

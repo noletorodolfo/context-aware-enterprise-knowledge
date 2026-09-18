@@ -4,13 +4,13 @@ Definition of done: see the spec, section 7.
 
 ## Checklist
 
-| #   | Item                                                          | Where      | Status                                                                 |
-| --- | ------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------- |
-| 1   | Key Vault certificate, Azure OpenAI, E2E client, budget USD 5 | Terraform  | ✅                                                                     |
-| 2   | API deployed with retrieval and Azure OpenAI                  | Azure      | ✅                                                                     |
-| 3   | SPFx package with citations uploaded                          | SharePoint | ✅                                                                     |
-| 4   | End-to-end no-leak test green                                 | Local      | ✅                                                                     |
-| 5   | A and B compared on the demo site (screenshots)               | SharePoint | ✅ (manual comparison recorded above; anonymized screenshots optional) |
+| #   | Item                                                          | Where      | Status                                                                                             |
+| --- | ------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| 1   | Key Vault certificate, Azure OpenAI, E2E client, budget USD 5 | Terraform  | ✅                                                                                                 |
+| 2   | API deployed with retrieval and Azure OpenAI                  | Azure      | ✅                                                                                                 |
+| 3   | SPFx package with citations uploaded                          | SharePoint | ✅                                                                                                 |
+| 4   | End-to-end no-leak test green                                 | Local      | ✅                                                                                                 |
+| 5   | A and B compared on the demo site (screenshots)               | SharePoint | ✅ (manual comparison recorded below; anonymized screenshots pending (optional per user decision)) |
 
 ## Provision
 
@@ -50,16 +50,18 @@ A follow-up `terraform plan` after each apply showed no further changes.
 
 **Role propagation pitfall:** RBAC role assignments created by `apply`
 (Key Vault Crypto User on the certificate key, Cognitive Services OpenAI
-User) can take a few minutes to propagate. If the API returns `403` on the
-Key Vault or Azure OpenAI call right after a fresh `apply`, wait a few
-minutes and retry before assuming the assignment is wrong.
+User) can take a few minutes to propagate. Callers see a `502`/`503`
+(upstream failure), not a `403`, on the Key Vault or Azure OpenAI call
+right after a fresh `apply`. Wait a few minutes and retry before assuming
+the assignment is wrong.
 
 Read outputs from the `dev` environment (read-only, safe to run at any time):
 
 ```powershell
 & $tf "-chdir=infra/terraform/envs/dev" output -raw function_app_name
 & $tf "-chdir=infra/terraform/envs/dev" output -raw function_app_url
-& $tf "-chdir=infra/terraform/envs/dev" output -raw identity.e2e_client_id
+& $tf "-chdir=infra/terraform/envs/dev" output -raw e2e_client_id
+& $tf "-chdir=infra/terraform/envs/dev" output -raw knowledge_api_identifier_uri
 ```
 
 The Function App already carries the Phase 2 app settings (`TENANT_ID`,
@@ -71,7 +73,7 @@ Services OpenAI User) applied by Terraform in Task 1 of this phase.
 ## Deploy the API
 
 Build the deploy bundle. `npm run package` first runs `tsc -b` for the whole
-repo project graph (so `@kb/core` and `@kb/llm-providers` have a `dist/` to
+repo project graph (so `@kb/core`, `@kb/retrievers` and `@kb/llm-providers` have a `dist/` to
 resolve, even on a fresh clone) and then bundles everything, including those
 workspace packages, into a single `main.cjs`, since `func azure functionapp
 publish` cannot follow workspace symlinks:
@@ -104,7 +106,7 @@ publishing, and the Kudu deployment log may report "Function triggers
 synchronization failed ... 500". Both are benign for HTTP-triggered
 functions on this plan; do not treat either message alone as a failed
 deploy. Verify instead with the `401` smoke test in **Verify** below and by
-checking that the active deployment's timestamp in Kudo/the portal matches
+checking that the active deployment's timestamp in Kudu/the portal matches
 the publish you just ran.
 
 ## Build and upload SPFx 1.0.2.0
@@ -140,15 +142,15 @@ cp apps/knowledge-api/e2e/e2e.config.example.json apps/knowledge-api/e2e/e2e.con
 
 Fields in `e2e.config.json`:
 
-| Field        | Value                                                              |
-| ------------ | ------------------------------------------------------------------ |
-| `tenantId`   | Entra ID tenant id                                                 |
-| `clientId`   | E2E test client app id, Terraform output `identity.e2e_client_id`  |
-| `apiScope`   | `<knowledge_api_identifier_uri>/user_impersonation`                |
-| `apiBaseUrl` | Terraform output `function_app_url`                                |
-| `siteUrl`    | Demo SharePoint site URL                                           |
-| `userA`      | Test user A's UPN (has access to the restricted library)           |
-| `userB`      | Test user B's UPN (does not have access to the restricted library) |
+| Field        | Value                                                                   |
+| ------------ | ----------------------------------------------------------------------- |
+| `tenantId`   | Entra ID tenant id                                                      |
+| `clientId`   | E2E test client app id, Terraform output `e2e_client_id`                |
+| `apiScope`   | Terraform output `knowledge_api_identifier_uri` + `/user_impersonation` |
+| `apiBaseUrl` | Terraform output `function_app_url`                                     |
+| `siteUrl`    | Demo SharePoint site URL                                                |
+| `userA`      | Test user A's UPN (has access to the restricted library)                |
+| `userB`      | Test user B's UPN (does not have access to the restricted library)      |
 
 Run the suite:
 
@@ -159,6 +161,9 @@ npm run test:e2e
 The first run opens an interactive browser sign-in **twice**: once for
 `userA`, once for `userB`. Later runs reuse the git-ignored token caches
 written on first sign-in, so they run unattended until a token expires.
+
+The `.token-cache-*.json` files hold refresh tokens (git-ignored); delete
+them to force an interactive re-sign-in.
 
 **Final result: 4/4 tests passed.**
 
@@ -211,8 +216,8 @@ Azure OpenAI `400 content_filter` response, `param: prompt`,
 Root cause: without access to the salary table, user B's retrieval fell
 back to a synthetic supplier FAQ section that intentionally contains a
 planted prompt-injection paragraph (part of the evaluation set). Azure
-OpenAI's built-in jailbreak protection (Prompt Shields) blocked the
-completion call outright before any answer could be generated.
+OpenAI's content filter (likely Prompt Shields jailbreak detection) blocked
+the completion call outright before any answer could be generated.
 
 Fix: a new error kind `llm-content-filtered` is now mapped to a safe
 refusal (HTTP `200`, `refused: true`) instead of surfacing the upstream
