@@ -3,6 +3,7 @@ import type { AskClient } from "./clients.js";
 import { usersOf, type EvalUser, type GoldenCase } from "./golden-set.js";
 import type { Judge } from "./judge.js";
 import type { Execution } from "./metrics.js";
+import { NO_RETRY, withRetry, type RetryPolicy } from "./retry.js";
 
 export class MissingDiagnosticsError extends Error {
   public constructor() {
@@ -18,6 +19,8 @@ export interface RunOptions {
   judge?: Judge;
   /** Abort on the first answer without diagnostics (real runs: the role is required). */
   requireDiagnostics?: boolean;
+  /** Retries API calls that fail with 429/503 (throttling). */
+  retry?: RetryPolicy;
   onExecution?: (execution: Execution, index: number, total: number) => void;
 }
 
@@ -31,7 +34,7 @@ export async function runEvaluation(
   const executions: Execution[] = [];
 
   for (const [index, { goldenCase, user }] of planned.entries()) {
-    const execution = await runOne(goldenCase, user, ask);
+    const execution = await runOne(goldenCase, user, ask, options.retry ?? NO_RETRY);
     if (execution.response && !execution.response.diagnostics && options.requireDiagnostics) {
       throw new MissingDiagnosticsError();
     }
@@ -48,21 +51,39 @@ export async function runEvaluation(
   return executions;
 }
 
-async function runOne(goldenCase: GoldenCase, user: EvalUser, ask: AskClient): Promise<Execution> {
-  const base = { caseId: goldenCase.id, user };
+const THROTTLED = new Set([429, 503]);
+
+async function runOne(
+  goldenCase: GoldenCase,
+  user: EvalUser,
+  ask: AskClient,
+  retry: RetryPolicy,
+): Promise<Execution> {
+  let attempts = 1;
+  const base = () => ({ caseId: goldenCase.id, user, attempts });
   try {
-    const outcome = await ask(user, goldenCase.question);
+    const { result: outcome, attempts: made } = await withRetry(
+      retry,
+      () => ask(user, goldenCase.question),
+      (result) => THROTTLED.has(result.status),
+    );
+    attempts = made;
     if (outcome.status !== 200) {
-      return { ...base, status: "error", httpStatus: outcome.status, latencyMs: outcome.latencyMs };
+      return {
+        ...base(),
+        status: "error",
+        httpStatus: outcome.status,
+        latencyMs: outcome.latencyMs,
+      };
     }
     return {
-      ...base,
+      ...base(),
       status: "ok",
       httpStatus: 200,
       response: outcome.body as AskResponse,
       latencyMs: outcome.latencyMs,
     };
   } catch {
-    return { ...base, status: "error", latencyMs: 0 };
+    return { ...base(), status: "error", latencyMs: 0 };
   }
 }

@@ -1,5 +1,7 @@
-import type { ChatClient, JsonSchemaFormat } from "@kb/llm-providers";
+import { isUpstreamError } from "@kb/core";
+import type { ChatClient, ChatCompletionResponse, JsonSchemaFormat } from "@kb/llm-providers";
 import type { JudgeVerdict } from "./metrics.js";
+import { NO_RETRY, withRetry, type RetryPolicy } from "./retry.js";
 
 export const JUDGE_PROMPT_VERSION = "judge-v1";
 
@@ -57,18 +59,31 @@ export function parseJudgeOutput(content: string): JudgeVerdict | "not-judged" {
 }
 
 /** LLM-as-judge for groundedness; any failure yields "not-judged" (excluded from the average). */
-export function createJudge(chat: ChatClient, systemPrompt: string): Judge {
-  return async (input) => {
+export function createJudge(
+  chat: ChatClient,
+  systemPrompt: string,
+  retry: RetryPolicy = NO_RETRY,
+): Judge {
+  const call = async (
+    input: JudgeInput,
+  ): Promise<ChatCompletionResponse | "throttled" | "failed"> => {
     try {
-      const response = await chat.complete({
+      return await chat.complete({
         system: systemPrompt,
         user: buildJudgeMessage(input),
         maxOutputTokens: 300,
         jsonSchema: JUDGE_JSON_SCHEMA,
       });
-      return parseJudgeOutput(response.content);
-    } catch {
-      return "not-judged";
+    } catch (error) {
+      return isUpstreamError(error) && error.detail?.status === 429 ? "throttled" : "failed";
     }
+  };
+  return async (input) => {
+    const { result } = await withRetry(
+      retry,
+      () => call(input),
+      (r) => r === "throttled",
+    );
+    return typeof result === "string" ? "not-judged" : parseJudgeOutput(result.content);
   };
 }

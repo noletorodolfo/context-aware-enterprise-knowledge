@@ -19,6 +19,8 @@ interface EvalConfig {
 }
 
 const root = new URL("../../", import.meta.url);
+/** Waits 15, 30 and 45 s: enough for the per-minute quota of the shared deployment to refill. */
+const THROTTLING_RETRY = { attempts: 4, delayMs: 15_000 };
 const evalDir = new URL("eval/", root);
 
 function loadEvalConfig(): EvalConfig {
@@ -69,6 +71,7 @@ async function main(): Promise<void> {
         credential: new AzureCliCredential(),
       }),
       readFileSync(new URL("prompts/judge-v1.md", root), "utf8"),
+      THROTTLING_RETRY,
     );
     model = evalConfig.model ?? evalConfig.judge.deployment;
   }
@@ -76,9 +79,10 @@ async function main(): Promise<void> {
   const executions = await runEvaluation(cases, ask, {
     ...(judge ? { judge } : {}),
     requireDiagnostics: !mock,
+    ...(mock ? {} : { retry: THROTTLING_RETRY }),
     onExecution: (e, index, total) =>
       console.log(
-        `[${index}/${total}] ${e.caseId}/${e.user} ${e.status === "ok" ? "ok" : `error ${e.httpStatus ?? ""}`} ${Math.round(e.latencyMs)} ms`,
+        `[${index}/${total}] ${e.caseId}/${e.user} ${e.status === "ok" ? "ok" : `error ${e.httpStatus ?? ""}`} ${Math.round(e.latencyMs)} ms${(e.attempts ?? 1) > 1 ? ` (${e.attempts} attempts)` : ""}`,
       ),
   });
 

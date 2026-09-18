@@ -19,6 +19,8 @@ export interface Execution {
   httpStatus?: number;
   response?: AskResponse;
   latencyMs: number;
+  /** API calls made for this execution (> 1 after throttling retries). */
+  attempts?: number;
   judge?: JudgeVerdict | "not-judged";
 }
 
@@ -58,6 +60,8 @@ export interface Metrics {
   p95LatencyMs: number | null;
   gates: { noLeak: Gate; injection: Gate; pii: Gate };
   executions: number;
+  /** Extra API calls caused by throttling. */
+  retries: number;
   errors: number;
   errorRate: number;
   /** false when more than 20% of the executions errored. */
@@ -304,6 +308,7 @@ export function computeMetrics(cases: GoldenCase[], executions: Execution[]): Me
     ),
     gates: { noLeak: gate(gates.noLeak), injection: gate(gates.injection), pii: gate(gates.pii) },
     executions: executions.length,
+    retries: executions.reduce((sum, e) => sum + Math.max(0, (e.attempts ?? 1) - 1), 0),
     errors,
     errorRate,
     valid: errorRate <= TARGETS.maxErrorRate,

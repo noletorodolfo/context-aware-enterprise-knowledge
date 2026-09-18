@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { UpstreamError } from "@kb/core";
 import type { ChatClient, ChatCompletionRequest } from "@kb/llm-providers";
 import { buildJudgeMessage, createJudge, parseJudgeOutput } from "./judge.js";
 
@@ -50,6 +51,25 @@ describe("judge", () => {
     expect(requests[0]?.jsonSchema.name).toBe("groundedness_verdict");
     expect(requests[0]?.user.match(/<\/answer>/g)).toHaveLength(1);
     expect(requests[0]?.user.match(/<question>/g)).toHaveLength(1);
+  });
+
+  it("retries when the judge is throttled", async () => {
+    let calls = 0;
+    const chat: ChatClient = {
+      complete: () => {
+        calls += 1;
+        return calls < 3
+          ? Promise.reject(new UpstreamError("llm-unavailable", "throttled", { status: 429 }))
+          : Promise.resolve({ content: '{"score":4,"unsupportedClaims":[]}' });
+      },
+    };
+    const judge = createJudge(chat, "P", {
+      attempts: 3,
+      delayMs: 1,
+      sleep: () => Promise.resolve(),
+    });
+    expect(await judge(input)).toEqual({ score: 4, unsupportedClaims: [] });
+    expect(calls).toBe(3);
   });
 
   it("returns not-judged when the model call fails", async () => {
