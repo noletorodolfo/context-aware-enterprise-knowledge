@@ -121,7 +121,7 @@ resource "azuread_application" "e2e_client" {
   display_name                   = "kb-e2e-client-${var.environment}"
   sign_in_audience               = "AzureADMyOrg"
   owners                         = local.owners
-  fallback_public_client_enabled = true
+  fallback_public_client_enabled = false
 
   public_client {
     redirect_uris = ["http://localhost"]
