@@ -51,17 +51,18 @@ interface Detector {
 }
 
 // Order matters: emails first, then CNPJ (14 digits) before CPF (11) and phones, so longer
-// identifiers are not partially consumed by shorter patterns.
+// identifiers are not partially consumed by shorter patterns. A "." or "-" next to a number only
+// blocks a match when another digit follows it, so sentence punctuation does not hide a CPF/CNPJ.
 const DETECTORS: Detector[] = [
   { type: "email", pattern: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g },
   {
     type: "cnpj",
-    pattern: /(?<![\d/.-])\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}(?![\d/.-])/g,
+    pattern: /(?<![\d/]|\d[.-])\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}(?![\d/]|[.-]\d)/g,
     accept: isValidCnpj,
   },
   {
     type: "cpf",
-    pattern: /(?<![\d/.-])\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?![\d/.-])/g,
+    pattern: /(?<![\d/]|\d[.-])\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?![\d/]|[.-]\d)/g,
     accept: isValidCpf,
   },
   {

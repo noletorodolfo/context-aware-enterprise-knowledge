@@ -20,6 +20,22 @@ describe("maskPii", () => {
     });
   });
 
+  it.each([
+    ["Meu CPF é 529.982.247-25. Quantos dias?", "Meu CPF é [CPF]. Quantos dias?"],
+    ["CPF: 529.982.247-25-", "CPF: [CPF]-"],
+    ["-529.982.247-25 e .52998224725.", "-[CPF] e .[CPF]."],
+    ["Fornecedor 11.222.333/0001-81.", "Fornecedor [CNPJ]."],
+  ])("masks CPF and CNPJ next to punctuation (%s)", (text, masked) => {
+    expect(maskPii(text).masked).toBe(masked);
+  });
+
+  it.each(["529.982.247-25.1", "1.529.982.247-25", "529.982.247-25/0001", "11.222.333/0001-81-9"])(
+    "does not mask part of a longer number (%s)",
+    (text) => {
+      expect(maskPii(text).findings).toEqual([]);
+    },
+  );
+
   it("keeps an invalid CNPJ", () => {
     expect(maskPii("CNPJ 11.222.333/0001-82").findings).toEqual([]);
   });
