@@ -310,6 +310,8 @@ Goal: all **Must** items done within 7 days. Should and Could come later, with n
 
 **Done when:** `npm run eval` generates the report with metrics and a single trace appears in App Insights, from the SPFx to the LLM.
 
+**Result (2026-09-18):** done. First report: all hard gates pass and every quality target is met (see `eval/reports/`). The golden set found a masking gap (CPF before a period), fixed before the first real run. Runbook: `docs/setup/phase-3.md`.
+
 ### Phase 4 — Infrastructure and CI/CD · Must · ~1 day
 
 - Terraform for all of the Azure infra with remote state.
