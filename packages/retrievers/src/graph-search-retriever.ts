@@ -144,9 +144,17 @@ export class GraphSearchRetriever implements Retriever {
         status: response.status,
         stage: "search",
       });
-    const json = (await response.json()) as {
-      value?: { hitsContainers?: { hits?: DriveItemHit[] }[] }[];
-    };
+    let json: { value?: { hitsContainers?: { hits?: DriveItemHit[] }[] }[] };
+    try {
+      json = (await response.json()) as {
+        value?: { hitsContainers?: { hits?: DriveItemHit[] }[] }[];
+      };
+    } catch (error) {
+      throw new UpstreamError("upstream", "Microsoft Graph search failed", {
+        stage: "search",
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     return json.value?.[0]?.hitsContainers?.[0]?.hits ?? [];
   }
 
@@ -165,8 +173,17 @@ export class GraphSearchRetriever implements Retriever {
         status: response.status,
         stage: "download",
       });
+    let buffer: Buffer;
     try {
-      return await extractSections(Buffer.from(await response.arrayBuffer()));
+      buffer = Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      throw new UpstreamError("upstream", "Microsoft Graph download failed", {
+        stage: "download",
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
+    try {
+      return await extractSections(buffer);
     } catch {
       return [];
     }

@@ -213,4 +213,98 @@ describe("GraphSearchRetriever", () => {
       }),
     ).rejects.toMatchObject({ detail: { stage: "search", errorName: "TimeoutError" } });
   });
+
+  it("maps a non-JSON search response body to an upstream error with stage 'search'", async () => {
+    const fetchFn = ((url: string) => {
+      if (url === "https://graph.microsoft.com/v1.0/search/query") {
+        return Promise.resolve(new Response("not json", { status: 200 }));
+      }
+      return Promise.resolve(new Response("", { status: 404 }));
+    }) as unknown as typeof fetch;
+
+    await expect(
+      new GraphSearchRetriever({ siteUrls: [SITE], fetchFn }).retrieve({
+        question: "auxílio",
+        graphToken: "t",
+      }),
+    ).rejects.toMatchObject({
+      name: "UpstreamError",
+      kind: "upstream",
+      detail: { stage: "search" },
+    });
+  });
+
+  it("maps a download body-read failure to an upstream error with stage 'download'", async () => {
+    const fetchFn = ((url: string) => {
+      if (url === "https://graph.microsoft.com/v1.0/search/query") {
+        return Promise.resolve(
+          new Response(JSON.stringify(searchResult([hit("a", "a.docx", `${SITE}/D/a.docx`)])), {
+            status: 200,
+          }),
+        );
+      }
+      if (url.includes("/items/a/content")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          arrayBuffer: () => Promise.reject(new DOMException("timeout", "TimeoutError")),
+        } as unknown as Response);
+      }
+      return Promise.resolve(new Response("", { status: 404 }));
+    }) as unknown as typeof fetch;
+
+    await expect(
+      new GraphSearchRetriever({ siteUrls: [SITE], fetchFn }).retrieve({
+        question: "auxílio",
+        graphToken: "t",
+      }),
+    ).rejects.toMatchObject({
+      name: "UpstreamError",
+      kind: "upstream",
+      detail: { stage: "download", errorName: "TimeoutError" },
+    });
+  });
+
+  it("treats malformed .docx bytes as no sections, without raising an error", async () => {
+    const { fetchFn } = fakeGraph({
+      search: {
+        status: 200,
+        json: searchResult([hit("bad", "bad.docx", `${SITE}/D/bad.docx`)]),
+      },
+      files: {
+        bad: {
+          status: 200,
+          body: new TextEncoder().encode("not a real docx").buffer as ArrayBuffer,
+        },
+      },
+    });
+
+    const result = await new GraphSearchRetriever({ siteUrls: [SITE], fetchFn }).retrieve({
+      question: "auxílio",
+      graphToken: "t",
+    });
+
+    expect(result.chunks).toEqual([]);
+  });
+
+  it("never downloads a look-alike site whose name merely starts with the scoped site", async () => {
+    const { requests, fetchFn } = fakeGraph({
+      search: {
+        status: 200,
+        json: searchResult([hit("evil", "x.docx", `${SITE}-evil/Docs/x.docx`)]),
+      },
+      files: {
+        evil: { status: 200, body: await docx("Auxílio", "auxílio") },
+      },
+    });
+
+    const result = await new GraphSearchRetriever({ siteUrls: [SITE], fetchFn }).retrieve({
+      question: "auxílio",
+      graphToken: "t",
+    });
+
+    expect(requests.map((r) => r.url)).toEqual(["https://graph.microsoft.com/v1.0/search/query"]);
+    expect(result.documentCount).toBe(0);
+    expect(result.chunks).toEqual([]);
+  });
 });
