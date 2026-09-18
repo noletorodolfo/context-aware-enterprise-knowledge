@@ -13,6 +13,8 @@ import { renderReport, runPassed } from "./report.js";
 import { runEvaluation } from "./run.js";
 
 interface EvalConfig {
+  /** Label for the report, e.g. "gpt-4.1-mini" (defaults to the deployment name). */
+  model?: string;
   judge: { endpoint: string; deployment: string };
 }
 
@@ -68,7 +70,7 @@ async function main(): Promise<void> {
       }),
       readFileSync(new URL("prompts/judge-v1.md", root), "utf8"),
     );
-    model = evalConfig.judge.deployment;
+    model = evalConfig.model ?? evalConfig.judge.deployment;
   }
 
   const executions = await runEvaluation(cases, ask, {
