@@ -1,7 +1,9 @@
 import {
   enforceGrounding,
   isUpstreamError,
+  markSpanError,
   refusal,
+  withSpan,
   type Answer,
   type AskResponse,
   type Diagnostics,
@@ -12,10 +14,12 @@ import {
   type UpstreamErrorKind,
 } from "@kb/core";
 import type { PiiMaskResult } from "@kb/governance";
+import type { Span } from "@opentelemetry/api";
 import type { LlmProvider, TokenUsage } from "@kb/llm-providers";
 import type { Retriever } from "@kb/retrievers";
 import type { TokenExchanger } from "../auth/obo.js";
 import type { TokenValidator } from "../auth/token-validator.js";
+import { recordAskMetrics } from "./metrics.js";
 import { askRequestSchema } from "./request-schema.js";
 
 export interface AskHttpRequest {
@@ -62,19 +66,33 @@ const UPSTREAM_RESPONSES: Record<
 /**
  * POST /api/ask, independent of the Azure Functions runtime.
  * Personal data is masked before any dependency sees the question (fail closed).
- * Logs carry metadata only: question, document and answer text are never logged.
+ * Logs, span attributes and metrics carry metadata only: question, document and answer text
+ * never leave the request.
  */
-export async function handleAsk(
+export function handleAsk(
   request: AskHttpRequest,
   deps: AskDependencies,
 ): Promise<AskHttpResponse> {
+  return withSpan("ask", {}, (span) => ask(request, deps, span));
+}
+
+async function ask(
+  request: AskHttpRequest,
+  deps: AskDependencies,
+  span: Span,
+): Promise<AskHttpResponse> {
   const correlationId = deps.newCorrelationId();
+  span.setAttribute("kb.correlation_id", correlationId);
   const startedAt = deps.now();
-  const respond = (status: AskHttpResponse["status"], jsonBody: unknown): AskHttpResponse => ({
-    status,
-    headers: { "x-correlation-id": correlationId },
-    jsonBody,
-  });
+  const respond = (
+    status: AskHttpResponse["status"],
+    jsonBody: unknown,
+    errorType?: string,
+  ): AskHttpResponse => {
+    span.setAttribute("http.response.status_code", status);
+    if (status >= 500) markSpanError(span, errorType ?? "internal-error");
+    return { status, headers: { "x-correlation-id": correlationId }, jsonBody };
+  };
 
   const auth = await deps.validateToken(request.authorization);
   if (!auth.ok) {
@@ -98,7 +116,16 @@ export async function handleAsk(
   };
 
   try {
-    const pii = deps.maskPii(rawText);
+    const pii = await withSpan("pii.mask", {}, async (piiSpan) => {
+      const result = deps.maskPii(rawText);
+      const count = result.findings.reduce((sum, finding) => sum + finding.count, 0);
+      piiSpan.setAttribute("kb.pii.count", count);
+      piiSpan.setAttribute(
+        "kb.pii.types",
+        result.findings.map((finding) => finding.type),
+      );
+      return result;
+    });
     const text = pii.masked;
     const question: Question = { text, page };
 
@@ -126,7 +153,13 @@ export async function handleAsk(
           chunks,
         });
         usage = result.usage;
-        answer = enforceGrounding(result.draft, chunks);
+        const draft = result.draft;
+        answer = await withSpan("grounding", {}, async (groundingSpan) => {
+          const grounded = enforceGrounding(draft, chunks);
+          groundingSpan.setAttribute("kb.citations.count", grounded.citations.length);
+          groundingSpan.setAttribute("kb.refused", grounded.refused);
+          return grounded;
+        });
         if (answer.refused) refusalReason = "ungrounded";
       } catch (error) {
         if (isUpstreamError(error) && error.kind === "llm-content-filtered") {
@@ -141,6 +174,19 @@ export async function handleAsk(
     const generationDone = deps.now();
     const finishedAt = deps.now();
     const piiCount = pii.findings.reduce((sum, finding) => sum + finding.count, 0);
+
+    span.setAttribute("kb.prompt.version", answer.promptVersion);
+    span.setAttribute("kb.refused", answer.refused);
+    span.setAttribute("kb.citations.count", answer.citations.length);
+    span.setAttribute("kb.pii.count", piiCount);
+    if (refusalReason) span.setAttribute("kb.refusal.reason", refusalReason);
+    recordAskMetrics({
+      retrievalMs: retrievalDone - oboDone,
+      ...(chunks.length > 0 ? { generationMs: generationDone - retrievalDone } : {}),
+      ...(usage ? { usage } : {}),
+      citations: answer.citations.length,
+      ...(refusalReason ? { refusalReason } : {}),
+    });
 
     deps.logger.info("ask.completed", {
       correlationId,
@@ -193,7 +239,7 @@ export async function handleAsk(
         durationMs: deps.now() - startedAt,
         ...(error.detail ?? {}),
       });
-      return respond(mapped.status, { error: mapped.error, correlationId });
+      return respond(mapped.status, { error: mapped.error, correlationId }, error.kind);
     }
     deps.logger.error("ask.failed", {
       correlationId,

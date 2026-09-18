@@ -32,6 +32,10 @@ await build({
   format: "cjs",
   sourcemap: true,
   loader: { ".md": "text" },
+  // ESM dependencies (e.g. @azure/monitor-opentelemetry) read import.meta.url, which is empty
+  // in a CommonJS bundle: point it at the bundle file instead.
+  banner: { js: 'const __importMetaUrl = require("node:url").pathToFileURL(__filename).href;' },
+  define: { "import.meta.url": "__importMetaUrl" },
   external: ["@azure/functions-core"], // provided by the Functions Node.js worker
 });
 

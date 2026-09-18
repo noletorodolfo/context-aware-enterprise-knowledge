@@ -10,12 +10,17 @@
   },
   "dependencies": {
     "@azure/functions": "^4.16.4",
+    "@azure/functions-opentelemetry-instrumentation": "^0.3.0",
     "@azure/identity": "^4.13.3",
     "@azure/keyvault-keys": "^4.10.2",
+    "@azure/monitor-opentelemetry": "^1.20.0",
     "@kb/core": "0.1.0",
     "@kb/governance": "0.1.0",
     "@kb/llm-providers": "0.1.0",
     "@kb/retrievers": "0.1.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.222.0",
+    "@opentelemetry/instrumentation": "^0.222.0",
     "jose": "^6.2.12",
     "zod": "^4.6.5"
   },
