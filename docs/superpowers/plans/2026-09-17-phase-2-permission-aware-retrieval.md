@@ -3655,7 +3655,7 @@ describe("no-leak end-to-end (real tenant)", () => {
 
 - [ ] **Step 4: Run (user signs in)**
 
-Fill `apps/knowledge-api/e2e/e2e.config.json` from Terraform outputs (`identity.e2e_client_id`, `identity.knowledge_api_identifier_uri` + `/user_impersonation`, `function_app_url`) and the tenant/site/UPNs in tfvars. Tell the user: the browser opens twice — sign in as user A, then as user B (private browsing not required; `prompt=login` forces account entry).
+Fill `apps/knowledge-api/e2e/e2e.config.json` from Terraform outputs (`e2e_client_id`, `knowledge_api_identifier_uri` + `/user_impersonation`, `function_app_url`) and the tenant/site/UPNs in tfvars. Tell the user: the browser opens twice — sign in as user A, then as user B (private browsing not required; `prompt=login` forces account entry).
 
 Run: `npm run test:e2e`
 Expected: 4 tests PASS. If a test fails, report the answer's citation titles and `refused` flags (never full document text) for diagnosis.
@@ -3688,7 +3688,7 @@ In `docs/PLAN.md`: ADR-006 row → "Azure OpenAI (Global Standard, managed ident
 
 - [ ] **Step 3: Verify and commit**
 
-Run: `npm run check` → green. Run: `git grep -n -I -i -E "<redacted>"` → no output.
+Run: `npm run check` → green. Search tracked files for each value present in your git-ignored `terraform.tfvars`, `backend.hcl`, `apps/spfx-assistant/config/api.json` and `apps/knowledge-api/e2e/e2e.config.json` (for example with `git grep -n -F -e <value>`); expect no matches.
 
 ```bash
 git add docs README.md
