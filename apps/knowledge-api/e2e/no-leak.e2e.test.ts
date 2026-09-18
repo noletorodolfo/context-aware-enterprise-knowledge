@@ -48,7 +48,11 @@ describe("no-leak end-to-end (real tenant)", () => {
     const question = "Qual a faixa salarial de um Analista de Logística Pleno?";
     const [a, b] = [await ask(tokenA, question), await ask(tokenB, question)];
     expect(cites(a, "tabela-salarial-2026")).toBe(true);
+    // Self-check: the restricted-library pattern must actually match A's citation, otherwise
+    // expectNoRestrictedCitation(b) below would be a vacuous pass.
+    expect(a.citations.some((c) => RESTRICTED_LIBRARY.test(c.url))).toBe(true);
     expect(b.citations.some((c) => c.url.toLowerCase().includes("tabela-salarial"))).toBe(false);
+    expect(b.refused).toBe(true);
     expectNoRestrictedCitation(b);
   });
 
@@ -56,6 +60,12 @@ describe("no-leak end-to-end (real tenant)", () => {
     const question = "Quais mudanças estão previstas no plano de reestruturação?";
     const [a, b] = [await ask(tokenA, question), await ask(tokenB, question)];
     expect(cites(a, "plano-reestruturacao-2026")).toBe(true);
+    // Self-check: the restricted-library pattern must actually match A's citation, otherwise
+    // expectNoRestrictedCitation(b) below would be a vacuous pass.
+    expect(a.citations.some((c) => RESTRICTED_LIBRARY.test(c.url))).toBe(true);
+    expect(b.citations.some((c) => c.url.toLowerCase().includes("plano-reestruturacao"))).toBe(
+      false,
+    );
     expectNoRestrictedCitation(b);
   });
 
