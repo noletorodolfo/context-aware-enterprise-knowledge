@@ -48,3 +48,32 @@ export interface Answer {
   refused: boolean;
   promptVersion: string;
 }
+
+export type RefusalReason = "no-relevant-documents" | "ungrounded" | "content-filter";
+
+/** A document the retriever downloaded for the caller, in search rank order (1 = best). */
+export interface RetrievedDocument {
+  docId: string;
+  title: string;
+  url: string;
+  rank: number;
+}
+
+/** Pipeline internals returned only to callers with the Evaluator app role. */
+export interface Diagnostics {
+  promptVersion: string;
+  refusalReason?: RefusalReason;
+  pii: { type: string; count: number }[];
+  retrieval: {
+    documents: RetrievedDocument[];
+    chunks: { id: string; docId: string; score: number }[];
+  };
+  timingsMs: { obo: number; retrieval: number; generation: number; total: number };
+}
+
+/** Body of a successful POST /api/ask. */
+export interface AskResponse extends Answer {
+  /** true when personal data was removed from the question before processing. */
+  piiMasked: boolean;
+  diagnostics?: Diagnostics;
+}

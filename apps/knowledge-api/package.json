@@ -4,23 +4,33 @@
   "private": true,
   "description": "Knowledge API: Azure Functions app exposing POST /api/ask.",
   "type": "module",
+  "exports": {
+    "./ask": {
+      "types": "./dist/ask/handle-ask.d.ts",
+      "default": "./dist/ask/handle-ask.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "package": "node scripts/package.mjs"
   },
   "dependencies": {
     "@azure/functions": "^4.16.4",
+    "@azure/functions-opentelemetry-instrumentation": "^0.3.0",
     "@azure/identity": "^4.13.3",
     "@azure/keyvault-keys": "^4.10.2",
+    "@azure/monitor-opentelemetry": "^1.20.0",
     "@kb/core": "0.1.0",
+    "@kb/governance": "0.1.0",
     "@kb/llm-providers": "0.1.0",
     "@kb/retrievers": "0.1.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.222.0",
+    "@opentelemetry/instrumentation": "^0.222.0",
     "jose": "^6.2.12",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@azure/msal-node": "^6.0.1",
-    "esbuild": "^0.28.2",
-    "open": "^11.0.4"
+    "esbuild": "^0.28.2"
   }
 }

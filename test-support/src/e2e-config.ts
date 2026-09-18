@@ -10,8 +10,14 @@ export interface E2eConfig {
   userB: string;
 }
 
-export function loadE2eConfig(): E2eConfig {
-  const path = new URL("./e2e.config.json", import.meta.url);
+/** Default location, shared by the end-to-end test and the evaluation runner. */
+export const E2E_DIR = new URL("../../apps/knowledge-api/e2e/", import.meta.url);
+
+/** Token cache file of a test user, next to the end-to-end configuration. */
+export const tokenCacheFile = (user: "a" | "b"): URL =>
+  new URL(`.token-cache-${user}.json`, E2E_DIR);
+
+export function loadE2eConfig(path: URL = new URL("e2e.config.json", E2E_DIR)): E2eConfig {
   let raw: string;
   try {
     raw = readFileSync(path, "utf8");

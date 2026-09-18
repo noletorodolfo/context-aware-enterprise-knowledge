@@ -1,4 +1,4 @@
-import { UpstreamError } from "@kb/core";
+import { UpstreamError, withSpan } from "@kb/core";
 
 export const GRAPH_DELEGATED_SCOPES = [
   "https://graph.microsoft.com/Sites.Read.All",
@@ -36,10 +36,16 @@ export function createOboExchanger(options: OboOptions): TokenExchanger {
   const now = options.now ?? Date.now;
   const fetchFn = options.fetchFn ?? fetch;
 
-  return async (userToken, userKey) => {
-    const cached = cache.get(userKey);
-    if (cached && cached.expiresAt - REFRESH_MARGIN_MS > now()) return cached.token;
+  return (userToken, userKey) =>
+    withSpan("obo.exchange", {}, async (span) => {
+      const cached = cache.get(userKey);
+      const cacheHit = !!cached && cached.expiresAt - REFRESH_MARGIN_MS > now();
+      span.setAttribute("kb.obo.cache_hit", cacheHit);
+      if (cached && cacheHit) return cached.token;
+      return exchange(userToken, userKey);
+    });
 
+  async function exchange(userToken: string, userKey: string): Promise<string> {
     let assertion: string;
     try {
       assertion = await options.createAssertion();
@@ -99,5 +105,5 @@ export function createOboExchanger(options: OboOptions): TokenExchanger {
       expiresAt: now() + (json.expires_in ?? 0) * 1000,
     });
     return json.access_token;
-  };
+  }
 }

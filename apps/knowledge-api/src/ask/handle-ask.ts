@@ -1,17 +1,25 @@
 import {
   enforceGrounding,
   isUpstreamError,
+  markSpanError,
   refusal,
+  withSpan,
   type Answer,
+  type AskResponse,
+  type Diagnostics,
   type PageContext,
   type Question,
+  type RefusalReason,
   type UpstreamErrorDetail,
   type UpstreamErrorKind,
 } from "@kb/core";
+import type { PiiMaskResult } from "@kb/governance";
+import type { Span } from "@opentelemetry/api";
 import type { LlmProvider, TokenUsage } from "@kb/llm-providers";
 import type { Retriever } from "@kb/retrievers";
 import type { TokenExchanger } from "../auth/obo.js";
 import type { TokenValidator } from "../auth/token-validator.js";
+import { recordAskMetrics } from "./metrics.js";
 import { askRequestSchema } from "./request-schema.js";
 
 export interface AskHttpRequest {
@@ -37,9 +45,13 @@ export interface AskDependencies {
   retriever: Retriever;
   provider: LlmProvider;
   logger: AskLogger;
+  maskPii: (text: string) => PiiMaskResult;
   newCorrelationId: () => string;
   now: () => number;
 }
+
+/** App role whose holders receive pipeline diagnostics (evaluation runs). */
+export const EVALUATOR_ROLE = "Evaluator";
 
 const UPSTREAM_RESPONSES: Record<
   Exclude<UpstreamErrorKind, "llm-content-filtered">,
@@ -53,19 +65,34 @@ const UPSTREAM_RESPONSES: Record<
 
 /**
  * POST /api/ask, independent of the Azure Functions runtime.
- * Logs carry metadata only: question, document and answer text are never logged.
+ * Personal data is masked before any dependency sees the question (fail closed).
+ * Logs, span attributes and metrics carry metadata only: question, document and answer text
+ * never leave the request.
  */
-export async function handleAsk(
+export function handleAsk(
   request: AskHttpRequest,
   deps: AskDependencies,
 ): Promise<AskHttpResponse> {
+  return withSpan("ask", {}, (span) => ask(request, deps, span));
+}
+
+async function ask(
+  request: AskHttpRequest,
+  deps: AskDependencies,
+  span: Span,
+): Promise<AskHttpResponse> {
   const correlationId = deps.newCorrelationId();
+  span.setAttribute("kb.correlation_id", correlationId);
   const startedAt = deps.now();
-  const respond = (status: AskHttpResponse["status"], jsonBody: unknown): AskHttpResponse => ({
-    status,
-    headers: { "x-correlation-id": correlationId },
-    jsonBody,
-  });
+  const respond = (
+    status: AskHttpResponse["status"],
+    jsonBody: unknown,
+    errorType?: string,
+  ): AskHttpResponse => {
+    span.setAttribute("http.response.status_code", status);
+    if (status >= 500) markSpanError(span, errorType ?? "internal-error");
+    return { status, headers: { "x-correlation-id": correlationId }, jsonBody };
+  };
 
   const auth = await deps.validateToken(request.authorization);
   if (!auth.ok) {
@@ -80,22 +107,39 @@ export async function handleAsk(
     return respond(400, { error: "invalid-request", field, correlationId });
   }
 
-  const { question: text, page: rawPage } = parsed.data;
+  const { question: rawText, page: rawPage } = parsed.data;
   const page: PageContext = {
     url: rawPage.url,
     title: rawPage.title,
     siteUrl: rawPage.siteUrl,
     ...(rawPage.listTitle !== undefined ? { listTitle: rawPage.listTitle } : {}),
   };
-  const question: Question = { text, page };
 
   try {
+    const pii = await withSpan("pii.mask", {}, async (piiSpan) => {
+      const result = deps.maskPii(rawText);
+      const count = result.findings.reduce((sum, finding) => sum + finding.count, 0);
+      piiSpan.setAttribute("kb.pii.count", count);
+      piiSpan.setAttribute(
+        "kb.pii.types",
+        result.findings.map((finding) => finding.type),
+      );
+      return result;
+    });
+    const text = pii.masked;
+    const question: Question = { text, page };
+
     const graphToken = await deps.exchangeToken(auth.token, auth.user.objectId);
-    const { chunks, documentCount } = await deps.retriever.retrieve({ question: text, graphToken });
+    const oboDone = deps.now();
+    const { chunks, documentCount, documents } = await deps.retriever.retrieve({
+      question: text,
+      graphToken,
+    });
+    const retrievalDone = deps.now();
 
     let answer: Answer;
     let usage: TokenUsage | undefined;
-    let refusalReason: "no-relevant-documents" | "ungrounded" | "content-filter" | undefined;
+    let refusalReason: RefusalReason | undefined;
     let upstreamDetail: UpstreamErrorDetail | undefined;
 
     if (chunks.length === 0) {
@@ -109,7 +153,13 @@ export async function handleAsk(
           chunks,
         });
         usage = result.usage;
-        answer = enforceGrounding(result.draft, chunks);
+        const draft = result.draft;
+        answer = await withSpan("grounding", {}, async (groundingSpan) => {
+          const grounded = enforceGrounding(draft, chunks);
+          groundingSpan.setAttribute("kb.citations.count", grounded.citations.length);
+          groundingSpan.setAttribute("kb.refused", grounded.refused);
+          return grounded;
+        });
         if (answer.refused) refusalReason = "ungrounded";
       } catch (error) {
         if (isUpstreamError(error) && error.kind === "llm-content-filtered") {
@@ -121,12 +171,28 @@ export async function handleAsk(
         }
       }
     }
+    const generationDone = deps.now();
+    const finishedAt = deps.now();
+    const piiCount = pii.findings.reduce((sum, finding) => sum + finding.count, 0);
+
+    span.setAttribute("kb.prompt.version", answer.promptVersion);
+    span.setAttribute("kb.refused", answer.refused);
+    span.setAttribute("kb.citations.count", answer.citations.length);
+    span.setAttribute("kb.pii.count", piiCount);
+    if (refusalReason) span.setAttribute("kb.refusal.reason", refusalReason);
+    recordAskMetrics({
+      retrievalMs: retrievalDone - oboDone,
+      ...(chunks.length > 0 ? { generationMs: generationDone - retrievalDone } : {}),
+      ...(usage ? { usage } : {}),
+      citations: answer.citations.length,
+      ...(refusalReason ? { refusalReason } : {}),
+    });
 
     deps.logger.info("ask.completed", {
       correlationId,
       status: 200,
-      questionLength: text.length,
-      durationMs: deps.now() - startedAt,
+      questionLength: rawText.length,
+      durationMs: finishedAt - startedAt,
       promptVersion: answer.promptVersion,
       documentCount,
       chunkCount: chunks.length,
@@ -134,6 +200,7 @@ export async function handleAsk(
       citationCount: answer.citations.length,
       refused: answer.refused,
       ...(refusalReason ? { refusalReason } : {}),
+      ...(piiCount > 0 ? { piiTypes: pii.findings.map((f) => f.type), piiCount } : {}),
       ...(upstreamDetail?.status !== undefined ? { upstreamStatus: upstreamDetail.status } : {}),
       ...(upstreamDetail?.code !== undefined ? { upstreamCode: upstreamDetail.code } : {}),
       ...(upstreamDetail?.innerCode !== undefined
@@ -141,7 +208,27 @@ export async function handleAsk(
         : {}),
       ...(usage ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : {}),
     });
-    return respond(200, answer);
+
+    const body: AskResponse = { ...answer, piiMasked: piiCount > 0 };
+    if (auth.roles.includes(EVALUATOR_ROLE)) {
+      const diagnostics: Diagnostics = {
+        promptVersion: answer.promptVersion,
+        ...(refusalReason ? { refusalReason } : {}),
+        pii: pii.findings,
+        retrieval: {
+          documents,
+          chunks: chunks.map((chunk) => ({ id: chunk.id, docId: chunk.docId, score: chunk.score })),
+        },
+        timingsMs: {
+          obo: oboDone - startedAt,
+          retrieval: retrievalDone - oboDone,
+          generation: generationDone - retrievalDone,
+          total: finishedAt - startedAt,
+        },
+      };
+      body.diagnostics = diagnostics;
+    }
+    return respond(200, body);
   } catch (error) {
     if (isUpstreamError(error)) {
       const mapped =
@@ -152,7 +239,7 @@ export async function handleAsk(
         durationMs: deps.now() - startedAt,
         ...(error.detail ?? {}),
       });
-      return respond(mapped.status, { error: mapped.error, correlationId });
+      return respond(mapped.status, { error: mapped.error, correlationId }, error.kind);
     }
     deps.logger.error("ask.failed", {
       correlationId,

@@ -1,0 +1,32 @@
+{
+  "name": "@kb/test-support",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared test and evaluation helpers: interactive sign-in for test users and in-memory OpenTelemetry.",
+  "type": "module",
+  "exports": {
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "default": "./dist/auth.js"
+    },
+    "./e2e-config": {
+      "types": "./dist/e2e-config.d.ts",
+      "default": "./dist/e2e-config.js"
+    },
+    "./otel": {
+      "types": "./dist/otel.d.ts",
+      "default": "./dist/otel.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^6.0.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/context-async-hooks": "^2.11.0",
+    "@opentelemetry/sdk-metrics": "^2.11.0",
+    "@opentelemetry/sdk-trace-base": "^2.11.0",
+    "open": "^11.0.4"
+  }
+}

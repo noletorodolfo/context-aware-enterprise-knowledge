@@ -6,3 +6,4 @@ package-lock.json
 .superpowers
 apps/knowledge-api/deploy
 apps/spfx-assistant
+eval/reports

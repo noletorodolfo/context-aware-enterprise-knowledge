@@ -27,3 +27,7 @@ output "knowledge_api_application_id" {
 output "e2e_client_id" {
   value = azuread_application.e2e_client.client_id
 }
+
+output "evaluator_role_id" {
+  value = random_uuid.evaluator_role.result
+}

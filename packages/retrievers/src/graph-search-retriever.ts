@@ -1,4 +1,4 @@
-import { UpstreamError, type Chunk } from "@kb/core";
+import { UpstreamError, withSpan, type Chunk, type RetrievedDocument } from "@kb/core";
 import { extractSections, type Section } from "./docx-sections.js";
 import {
   DEFAULT_LIMITS,
@@ -10,7 +10,10 @@ import { buildSearchQuery, extractKeywords } from "./text.js";
 
 export interface RetrievalResult {
   chunks: Chunk[];
+  /** In-scope documents considered (top N), including ones skipped for size or access. */
   documentCount: number;
+  /** Documents actually read, with their rank among the in-scope search hits. */
+  documents: RetrievedDocument[];
 }
 
 export interface Retriever {
@@ -67,29 +70,46 @@ export class GraphSearchRetriever implements Retriever {
     graphToken: string;
   }): Promise<RetrievalResult> {
     const keywords = extractKeywords(question);
-    if (keywords.length === 0) return { chunks: [], documentCount: 0 };
+    if (keywords.length === 0) return { chunks: [], documentCount: 0, documents: [] };
 
-    const hits = await this.search(buildSearchQuery(keywords, this.options.siteUrls), graphToken);
-    const documents = hits
-      .map((hit) => hit.resource)
-      .filter(
-        (r): r is Required<NonNullable<DriveItemHit["resource"]>> =>
-          !!r?.id &&
-          !!r.webUrl &&
-          !!r.parentReference?.driveId &&
-          (r.name ?? "").toLowerCase().endsWith(".docx") &&
-          this.inScope(r.webUrl),
-      )
-      .slice(0, this.options.maxDocuments);
+    const documents = await withSpan(
+      "graph.search",
+      { "kb.keywords.count": keywords.length },
+      async (span) => {
+        const hits = await this.search(
+          buildSearchQuery(keywords, this.options.siteUrls),
+          graphToken,
+        );
+        const inScope = hits
+          .map((hit) => hit.resource)
+          .filter(
+            (r): r is Required<NonNullable<DriveItemHit["resource"]>> =>
+              !!r?.id &&
+              !!r.webUrl &&
+              !!r.parentReference?.driveId &&
+              (r.name ?? "").toLowerCase().endsWith(".docx") &&
+              this.inScope(r.webUrl),
+          )
+          .slice(0, this.options.maxDocuments);
+        span.setAttribute("kb.search.hits", hits.length);
+        span.setAttribute("kb.documents.count", inScope.length);
+        return inScope;
+      },
+    );
 
     const candidates: CandidateSection[] = [];
-    for (const doc of documents) {
+    const readable: RetrievedDocument[] = [];
+    for (const [index, doc] of documents.entries()) {
       if (!Number.isFinite(doc.size) || (doc.size ?? 0) > this.options.maxFileBytes) continue;
       const sections = await this.download(doc.parentReference.driveId ?? "", doc.id, graphToken);
+      const title = doc.name.replace(/\.docx$/i, "");
+      if (sections.length > 0) {
+        readable.push({ docId: doc.id, title, url: doc.webUrl, rank: index + 1 });
+      }
       sections.forEach((section, sectionIndex) =>
         candidates.push({
           docId: doc.id,
-          title: doc.name.replace(/\.docx$/i, ""),
+          title,
           url: doc.webUrl,
           sectionIndex,
           heading: section.heading,
@@ -98,9 +118,20 @@ export class GraphSearchRetriever implements Retriever {
       );
     }
 
+    const chunks = await withSpan(
+      "retrieval.select",
+      { "kb.candidates.count": candidates.length },
+      async (span) => {
+        const selected = selectChunks(keywords, candidates, this.options.limits);
+        span.setAttribute("kb.chunks.count", selected.length);
+        return selected;
+      },
+    );
+
     return {
-      chunks: selectChunks(keywords, candidates, this.options.limits),
+      chunks,
       documentCount: documents.length,
+      documents: readable,
     };
   }
 
@@ -158,7 +189,22 @@ export class GraphSearchRetriever implements Retriever {
     return json.value?.[0]?.hitsContainers?.[0]?.hits ?? [];
   }
 
-  private async download(driveId: string, itemId: string, graphToken: string): Promise<Section[]> {
+  private download(driveId: string, itemId: string, graphToken: string): Promise<Section[]> {
+    return withSpan("graph.download", {}, async (span) => {
+      const sections = await this.downloadSections(driveId, itemId, graphToken, (status) =>
+        span.setAttribute("http.response.status_code", status),
+      );
+      span.setAttribute("kb.sections.count", sections.length);
+      return sections;
+    });
+  }
+
+  private async downloadSections(
+    driveId: string,
+    itemId: string,
+    graphToken: string,
+    onStatus: (status: number) => void,
+  ): Promise<Section[]> {
     const response = await this.request(
       `${GRAPH}/drives/${driveId}/items/${itemId}/content`,
       {
@@ -167,6 +213,7 @@ export class GraphSearchRetriever implements Retriever {
       },
       "download",
     );
+    onStatus(response.status);
     if (response.status === 403 || response.status === 404) return [];
     if (!response.ok)
       throw new UpstreamError("upstream", `Graph download failed: ${response.status}`, {

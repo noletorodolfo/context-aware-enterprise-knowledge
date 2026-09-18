@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AskClient, AskResult } from "../src/api/KnowledgeApiClient";
 import { ChatPanel } from "../src/components/ChatPanel";
+import type { AskResponse } from "../src/contract";
 import { AssistantLauncher } from "../src/components/AssistantLauncher";
 
 const page = {
@@ -10,15 +11,15 @@ const page = {
   title: "Home",
   siteUrl: "https://contoso.sharepoint.com/sites/kb-demo",
 };
-const mockAnswer: AskResult = {
-  ok: true,
-  answer: {
-    text: "Olá, A! Esta é uma resposta de teste.",
-    citations: [],
-    refused: false,
-    promptVersion: "mock",
-  },
+const TRACE_ID = "0123456789abcdef0123456789abcdef";
+const mockResponse: AskResponse = {
+  text: "Olá, A! Esta é uma resposta de teste.",
+  citations: [],
+  refused: false,
+  promptVersion: "mock",
+  piiMasked: false,
 };
+const mockAnswer: AskResult = { ok: true, answer: mockResponse };
 
 function fakeClient(...results: AskResult[]): AskClient & { ask: ReturnType<typeof vi.fn> } {
   const ask = vi.fn();
@@ -63,7 +64,7 @@ describe("ChatPanel", () => {
   });
 
   it("shows the mapped error and retries the same question", async () => {
-    const client = fakeClient({ ok: false, error: "unavailable" }, mockAnswer);
+    const client = fakeClient({ ok: false, error: "unavailable", traceId: TRACE_ID }, mockAnswer);
     const { input } = renderPanel(client);
     ask(input, "Qual o auxílio?");
 
@@ -103,9 +104,9 @@ describe("ChatPanel", () => {
       ),
     );
     expect(client.ask).not.toHaveBeenCalled();
-    expect(
-      (screen.getByRole("button", { name: "Enviar" }) as HTMLButtonElement).disabled,
-    ).toBe(false);
+    expect((screen.getByRole("button", { name: "Enviar" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 
   it("rejects questions over 1000 characters without calling the API", async () => {
@@ -143,6 +144,7 @@ describe("ChatPanel", () => {
         ],
         refused: false,
         promptVersion: "v1",
+        piiMasked: false,
       },
     });
     const { input } = renderPanel(client);
@@ -158,6 +160,34 @@ describe("ChatPanel", () => {
     expect(screen.queryByText("Resposta de teste")).toBeNull();
   });
 
+  it("ends API error messages with the trace code", async () => {
+    const client = fakeClient({ ok: false, error: "server-error", traceId: TRACE_ID });
+    const { input } = renderPanel(client);
+    ask(input, "Qual o auxílio?");
+
+    const message = await screen.findByText(/O assistente teve um problema/, { selector: "p" });
+    expect(message.textContent).toBe(
+      `O assistente teve um problema. Tente de novo.
+Código de rastreamento: ${TRACE_ID}`,
+    );
+  });
+
+  it("tells the user when personal data was removed from the question", async () => {
+    const client = fakeClient({ ok: true, answer: { ...mockResponse, piiMasked: true } });
+    const { input } = renderPanel(client);
+    ask(input, "Meu CPF é 123.456.789-09, qual o auxílio?");
+
+    expect(await screen.findByText("Removemos dados pessoais da sua pergunta.")).toBeTruthy();
+  });
+
+  it("shows no personal data notice when nothing was masked", async () => {
+    const { input } = renderPanel(fakeClient(mockAnswer));
+    ask(input, "Qual o auxílio?");
+
+    await screen.findByText("Resposta de teste");
+    expect(screen.queryByText("Removemos dados pessoais da sua pergunta.")).toBeNull();
+  });
+
   it("marks refusals", async () => {
     const client = fakeClient({
       ok: true,
@@ -166,6 +196,7 @@ describe("ChatPanel", () => {
         citations: [],
         refused: true,
         promptVersion: "v1",
+        piiMasked: false,
       },
     });
     const { input } = renderPanel(client);
@@ -199,9 +230,7 @@ describe("AssistantLauncher", () => {
   });
 
   it("uses brandColor as the button background when provided", () => {
-    render(
-      <AssistantLauncher client={fakeClient()} getPage={() => page} brandColor="#123456" />,
-    );
+    render(<AssistantLauncher client={fakeClient()} getPage={() => page} brandColor="#123456" />);
     const button = screen.getByRole("button", { name: "Abrir assistente" });
 
     expect(button.style.background).toContain("rgb(18, 52, 86)");

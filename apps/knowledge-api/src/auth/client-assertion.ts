@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { TokenCredential } from "@azure/identity";
 import { CryptographyClient } from "@azure/keyvault-keys";
+import { withSpan } from "@kb/core";
 
 /** Signs a SHA-256 digest with RSASSA-PKCS1-v1_5 without exposing the private key. */
 export interface Signer {
@@ -38,7 +39,7 @@ export async function createClientAssertion(options: ClientAssertionOptions): Pr
   };
   const signingInput = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`;
   const digest = createHash("sha256").update(signingInput).digest();
-  const signature = await options.signer.signRs256(digest);
+  const signature = await withSpan("keyvault.sign", {}, () => options.signer.signRs256(digest));
   return `${signingInput}.${base64Url(signature)}`;
 }
 

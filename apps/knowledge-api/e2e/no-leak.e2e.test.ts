@@ -1,7 +1,7 @@
 import type { Answer } from "@kb/core";
 import { beforeAll, describe, expect, it } from "vitest";
-import { signIn } from "./auth.js";
-import { loadE2eConfig, type E2eConfig } from "./e2e-config.js";
+import { signIn } from "@kb/test-support/auth";
+import { loadE2eConfig, tokenCacheFile, type E2eConfig } from "@kb/test-support/e2e-config";
 
 const RESTRICTED_LIBRARY = /\/RH-?Restrito\//i;
 
@@ -31,8 +31,8 @@ function expectNoRestrictedCitation(answer: Answer) {
 
 beforeAll(async () => {
   config = loadE2eConfig();
-  tokenA = await signIn(config, config.userA, "a");
-  tokenB = await signIn(config, config.userB, "b");
+  tokenA = await signIn(config, config.userA, tokenCacheFile("a"));
+  tokenB = await signIn(config, config.userB, tokenCacheFile("b"));
 });
 
 describe("no-leak end-to-end (real tenant)", () => {

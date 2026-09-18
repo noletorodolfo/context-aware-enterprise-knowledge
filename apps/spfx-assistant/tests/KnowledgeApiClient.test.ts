@@ -16,7 +16,14 @@ const request: AskRequest = {
     siteUrl: "https://contoso.sharepoint.com/sites/kb-demo",
   },
 };
-const answer: AskResponse = { text: "ok", citations: [], refused: false, promptVersion: "mock" };
+const answer: AskResponse = {
+  text: "ok",
+  citations: [],
+  refused: false,
+  promptVersion: "mock",
+  piiMasked: false,
+};
+const TRACE_ID = "0123456789abcdef0123456789abcdef";
 
 function poster(
   response: { status: number; body?: unknown } | Error,
@@ -69,12 +76,31 @@ describe("KnowledgeApiClient", () => {
     [504, "unavailable"],
     [404, "server-error"],
   ] as const)("maps HTTP %i to %s", async (status, error) => {
-    expect(await client(poster({ status })).ask(request)).toEqual({ ok: false, error });
+    expect(await client(poster({ status })).ask(request)).toEqual({
+      ok: false,
+      error,
+      traceId: TRACE_ID,
+    });
   });
 
   it("maps a 502 with invalid-model-output to server-error", async () => {
-    const http = poster({ status: 502, body: { error: "invalid-model-output", correlationId: "c" } });
-    expect(await client(http).ask(request)).toEqual({ ok: false, error: "server-error" });
+    const http = poster({
+      status: 502,
+      body: { error: "invalid-model-output", correlationId: "c" },
+    });
+    expect(await client(http).ask(request)).toEqual({
+      ok: false,
+      error: "server-error",
+      traceId: TRACE_ID,
+    });
+  });
+
+  it("returns the trace id of the request's traceparent on errors", async () => {
+    const http = poster({ status: 500 });
+    const result = await client(http).ask(request);
+    const sent = http.calls[0]![1].headers.traceparent;
+    expect(sent.split("-")[1]).toBe(TRACE_ID);
+    expect(result).toEqual({ ok: false, error: "server-error", traceId: TRACE_ID });
   });
 
   it("uses a 45 second default timeout", () => {
@@ -85,22 +111,35 @@ describe("KnowledgeApiClient", () => {
     expect(await client(poster(new TypeError("Failed to fetch"))).ask(request)).toEqual({
       ok: false,
       error: "unavailable",
+      traceId: TRACE_ID,
     });
   });
 
   it("maps a token acquisition failure during post to not-configured", async () => {
     const http = poster(new Error("AADSTS65001: The user or administrator has not consented"));
-    expect(await client(http).ask(request)).toEqual({ ok: false, error: "not-configured" });
+    expect(await client(http).ask(request)).toEqual({
+      ok: false,
+      error: "not-configured",
+      traceId: TRACE_ID,
+    });
   });
 
   it("maps a token-acquisition interaction_required failure during post to not-configured", async () => {
     const http = poster(new Error("interaction_required: user must sign in"));
-    expect(await client(http).ask(request)).toEqual({ ok: false, error: "not-configured" });
+    expect(await client(http).ask(request)).toEqual({
+      ok: false,
+      error: "not-configured",
+      traceId: TRACE_ID,
+    });
   });
 
   it("does not misclassify unrelated 'token' errors as not-configured", async () => {
     const http = poster(new Error("Invalid token in request stream"));
-    expect(await client(http).ask(request)).toEqual({ ok: false, error: "unavailable" });
+    expect(await client(http).ask(request)).toEqual({
+      ok: false,
+      error: "unavailable",
+      traceId: TRACE_ID,
+    });
   });
 
   it("maps a malformed JSON body on a 200 response to server-error", async () => {
@@ -111,7 +150,11 @@ describe("KnowledgeApiClient", () => {
           json: () => Promise.reject(new SyntaxError("Unexpected token < in JSON at position 0")),
         }),
     };
-    expect(await client(http).ask(request)).toEqual({ ok: false, error: "server-error" });
+    expect(await client(http).ask(request)).toEqual({
+      ok: false,
+      error: "server-error",
+      traceId: TRACE_ID,
+    });
   });
 
   it("maps a failure to create the AAD client to not-configured", async () => {
@@ -119,7 +162,9 @@ describe("KnowledgeApiClient", () => {
       baseUrl: "https://api.example.net",
       getHttp: () => Promise.reject(new Error("no")),
     });
-    expect(await failing.ask(request)).toEqual({ ok: false, error: "not-configured" });
+    const result = await failing.ask(request);
+    expect(result).toMatchObject({ ok: false, error: "not-configured" });
+    expect(result.ok ? "" : result.traceId).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it("times out as unavailable", async () => {
@@ -127,7 +172,11 @@ describe("KnowledgeApiClient", () => {
     const hanging: HttpPoster = { post: () => new Promise(() => undefined) };
     const pending = client(hanging, 30_000).ask(request);
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(await pending).toEqual({ ok: false, error: "unavailable" });
+    expect(await pending).toEqual({
+      ok: false,
+      error: "unavailable",
+      traceId: TRACE_ID,
+    });
     vi.useRealTimers();
   });
 });

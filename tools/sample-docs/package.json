@@ -4,6 +4,12 @@
   "private": true,
   "description": "Converts the synthetic documents in samples/documents into .docx files for upload to SharePoint.",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/parse.d.ts",
+      "default": "./dist/parse.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "build:docx": "tsc -b && node dist/build.js"

@@ -1,4 +1,4 @@
-import { isUpstreamError, UpstreamError, type Chunk } from "@kb/core";
+import { isUpstreamError, UpstreamError, withSpan, type Chunk } from "@kb/core";
 import { z } from "zod";
 import type { GenerateInput, GenerateResult, LlmProvider, TokenUsage } from "./provider.js";
 
@@ -93,15 +93,37 @@ export class AzureOpenAiProvider implements LlmProvider {
     this.promptVersion = options.promptVersion;
   }
 
-  public async generate({ question, chunks }: GenerateInput): Promise<GenerateResult> {
+  public generate({ question, chunks }: GenerateInput): Promise<GenerateResult> {
+    return withSpan(
+      "llm.generate",
+      { "kb.prompt.version": this.promptVersion, "kb.chunks.count": chunks.length },
+      async (span) => {
+        const result = await this.complete(question.text, chunks, (attempt) =>
+          span.setAttribute("kb.llm.attempts", attempt),
+        );
+        if (result.usage) {
+          span.setAttribute("gen_ai.usage.input_tokens", result.usage.inputTokens);
+          span.setAttribute("gen_ai.usage.output_tokens", result.usage.outputTokens);
+        }
+        return result;
+      },
+    );
+  }
+
+  private async complete(
+    questionText: string,
+    chunks: Chunk[],
+    onAttempt: (attempt: number) => void,
+  ): Promise<GenerateResult> {
     const request: ChatCompletionRequest = {
       system: this.options.systemPrompt,
-      user: buildUserMessage(question.text, chunks),
+      user: buildUserMessage(questionText, chunks),
       maxOutputTokens: this.options.maxOutputTokens ?? 600,
       jsonSchema: ANSWER_JSON_SCHEMA,
     };
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      onAttempt(attempt + 1);
       let response: ChatCompletionResponse;
       try {
         response = await this.options.chat.complete(request);

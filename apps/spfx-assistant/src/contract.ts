@@ -25,4 +25,8 @@ export interface AskResponse {
   citations: CitationDto[];
   refused: boolean;
   promptVersion: string;
+  /** true when personal data was removed from the question before processing. */
+  piiMasked: boolean;
+  /** Present only for evaluators; the UI ignores it. */
+  diagnostics?: unknown;
 }
