@@ -9,7 +9,9 @@ export interface HttpPoster {
   ): Promise<{ status: number; json(): Promise<unknown> }>;
 }
 
-export type AskResult = { ok: true; answer: AskResponse } | { ok: false; error: AskErrorKind };
+/** Errors carry the W3C trace id sent with the request, so users can quote it to support. */
+export type AskResult =
+  { ok: true; answer: AskResponse } | { ok: false; error: AskErrorKind; traceId: string };
 
 export interface AskClient {
   ask(request: AskRequest): Promise<AskResult>;
@@ -45,11 +47,15 @@ export class KnowledgeApiClient implements AskClient {
   }
 
   public async ask(request: AskRequest): Promise<AskResult> {
+    const traceparent = (this.options.newTraceparent ?? defaultTraceparent)();
+    const traceId = traceparent.split("-")[1] ?? "";
+    const fail = (error: AskErrorKind): AskResult => ({ ok: false, error, traceId });
+
     let http: HttpPoster;
     try {
       http = await this.options.getHttp();
     } catch {
-      return { ok: false, error: "not-configured" };
+      return fail("not-configured");
     }
 
     const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -64,7 +70,7 @@ export class KnowledgeApiClient implements AskClient {
         http.post(`${this.options.baseUrl.replace(/\/$/, "")}/api/ask`, {
           headers: {
             "Content-Type": "application/json",
-            traceparent: (this.options.newTraceparent ?? defaultTraceparent)(),
+            traceparent,
           },
           body: JSON.stringify(request),
         }),
@@ -73,21 +79,21 @@ export class KnowledgeApiClient implements AskClient {
     } catch (error) {
       clearTimeout(timer);
       const message = error instanceof Error ? error.message : String(error);
-      return { ok: false, error: TOKEN_ERROR.test(message) ? "not-configured" : "unavailable" };
+      return fail(TOKEN_ERROR.test(message) ? "not-configured" : "unavailable");
     }
     clearTimeout(timer);
 
-    if (response === TIMEOUT) return { ok: false, error: "unavailable" };
+    if (response === TIMEOUT) return fail("unavailable");
     if (response.status === 502) {
       const body = (await response.json().catch(() => undefined)) as { error?: string } | undefined;
-      if (body?.error === "invalid-model-output") return { ok: false, error: "server-error" };
+      if (body?.error === "invalid-model-output") return fail("server-error");
     }
-    if (response.status !== 200) return { ok: false, error: statusToError(response.status) };
+    if (response.status !== 200) return fail(statusToError(response.status));
 
     try {
       return { ok: true, answer: (await response.json()) as AskResponse };
     } catch {
-      return { ok: false, error: "server-error" };
+      return fail("server-error");
     }
   }
 }

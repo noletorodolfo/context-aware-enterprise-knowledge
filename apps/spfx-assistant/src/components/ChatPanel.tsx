@@ -13,8 +13,18 @@ export interface ChatPanelProps {
 
 type Message =
   | { kind: "question"; text: string }
-  | { kind: "answer"; text: string; isMock: boolean; refused: boolean; citations: CitationDto[] }
+  | {
+      kind: "answer";
+      text: string;
+      isMock: boolean;
+      refused: boolean;
+      piiMasked: boolean;
+      citations: CitationDto[];
+    }
   | { kind: "error"; text: string; retryQuestion?: string };
+
+const TRACE_LABEL = "Código de rastreamento";
+const PII_NOTICE = "Removemos dados pessoais da sua pergunta.";
 
 const panelStyle: React.CSSProperties = {
   position: "fixed",
@@ -54,9 +64,15 @@ export function ChatPanel({ id, client, getPage, onClose }: ChatPanelProps): Rea
               text: result.answer.text,
               isMock: result.answer.promptVersion === "mock",
               refused: result.answer.refused,
+              piiMasked: result.answer.piiMasked,
               citations: result.answer.citations,
             }
-          : { kind: "error", text: errorMessages[result.error], retryQuestion: question },
+          : {
+              kind: "error",
+              text: `${errorMessages[result.error]}
+${TRACE_LABEL}: ${result.traceId}`,
+              retryQuestion: question,
+            },
       ]);
     } catch {
       setMessages((current) => [
@@ -116,6 +132,11 @@ export function ChatPanel({ id, client, getPage, onClose }: ChatPanelProps): Rea
           >
             {message.kind === "answer" && message.isMock && (
               <Badge appearance="outline">Resposta de teste</Badge>
+            )}
+            {message.kind === "answer" && message.piiMasked && (
+              <p role="note" style={{ margin: "4px 0", fontSize: 12, color: "#605e5c" }}>
+                {PII_NOTICE}
+              </p>
             )}
             {message.kind === "answer" && message.refused && (
               <Badge appearance="tint" color="warning">
