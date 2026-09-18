@@ -119,3 +119,12 @@ resource "azurerm_role_assignment" "function_openai" {
   role_definition_name = "Cognitive Services OpenAI User"
   principal_id         = module.function_app.principal_id
 }
+
+# The operator's own Azure CLI identity runs the evaluation judge locally (no API keys).
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_role_assignment" "operator_openai" {
+  scope                = module.openai.account_id
+  role_definition_name = "Cognitive Services OpenAI User"
+  principal_id         = data.azurerm_client_config.current.object_id
+}

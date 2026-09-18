@@ -35,6 +35,8 @@ locals {
 
 resource "random_uuid" "user_impersonation" {}
 
+resource "random_uuid" "evaluator_role" {}
+
 resource "azuread_application" "knowledge_api" {
   display_name     = "kb-knowledge-api-${var.environment}"
   sign_in_audience = "AzureADMyOrg"
@@ -53,6 +55,16 @@ resource "azuread_application" "knowledge_api" {
       user_consent_display_name  = "Consultar a base de conhecimento"
       user_consent_description   = "Permite fazer perguntas à base de conhecimento em seu nome."
     }
+  }
+
+  # Holders receive pipeline diagnostics from /api/ask (evaluation runs only).
+  app_role {
+    id                   = random_uuid.evaluator_role.result
+    value                = "Evaluator"
+    display_name         = "Evaluator"
+    description          = "Receives retrieval and pipeline diagnostics for quality evaluation."
+    allowed_member_types = ["User"]
+    enabled              = true
   }
 
   required_resource_access {
@@ -106,6 +118,15 @@ resource "azuread_group" "colaboradores" {
   security_enabled = true
   owners           = local.owners
   members          = [local.user_a_id, local.user_b_id]
+}
+
+# Only the two test users may receive evaluation diagnostics.
+resource "azuread_app_role_assignment" "evaluator" {
+  for_each = { a = local.user_a_id, b = local.user_b_id }
+
+  app_role_id         = random_uuid.evaluator_role.result
+  principal_object_id = each.value
+  resource_object_id  = azuread_service_principal.knowledge_api.object_id
 }
 
 resource "azuread_group" "rh" {
