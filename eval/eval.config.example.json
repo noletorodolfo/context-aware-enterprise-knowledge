@@ -1,0 +1,6 @@
+{
+  "judge": {
+    "endpoint": "https://oai-kb-dev-xxxxxx.openai.azure.com/",
+    "deployment": "gpt-4.1-mini"
+  }
+}

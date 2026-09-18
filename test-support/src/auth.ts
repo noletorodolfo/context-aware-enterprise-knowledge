@@ -20,18 +20,21 @@ function fileCache(path: URL): ICachePlugin {
   };
 }
 
-/** Access token for the API scope as the given user: silent from cache, else interactive browser sign-in. */
+/**
+ * Access token for the API scope as the given user: silent from the cache file, else interactive
+ * browser sign-in. The cache file holds refresh tokens and must stay git-ignored.
+ */
 export async function signIn(
   config: E2eConfig,
   loginHint: string,
-  cacheName: "a" | "b",
+  cacheFile: URL,
 ): Promise<string> {
   const pca = new PublicClientApplication({
     auth: {
       clientId: config.clientId,
       authority: `https://login.microsoftonline.com/${config.tenantId}`,
     },
-    cache: { cachePlugin: fileCache(new URL(`./.token-cache-${cacheName}.json`, import.meta.url)) },
+    cache: { cachePlugin: fileCache(cacheFile) },
   });
 
   const account = (await pca.getTokenCache().getAllAccounts()).find(

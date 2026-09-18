@@ -6,6 +6,8 @@
     { "path": "packages/llm-providers" },
     { "path": "packages/retrievers" },
     { "path": "tools/sample-docs" },
-    { "path": "apps/knowledge-api" }
+    { "path": "test-support" },
+    { "path": "apps/knowledge-api" },
+    { "path": "eval" }
   ]
 }

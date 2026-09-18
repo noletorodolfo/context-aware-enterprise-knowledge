@@ -7,7 +7,7 @@ import {
   allAttributeValues,
   installTestTelemetry,
   type TestTelemetry,
-} from "../../../../test-support/otel.js";
+} from "@kb/test-support/otel";
 import { handleAsk, type AskDependencies } from "./handle-ask.js";
 
 const QUESTION = "Qual o valor do auxílio home office? Meu email é ana@example.com";

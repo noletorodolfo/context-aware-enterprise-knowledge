@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { installTestTelemetry, type TestTelemetry } from "../../../test-support/otel.js";
+import { installTestTelemetry, type TestTelemetry } from "@kb/test-support/otel";
 import { AzureOpenAiProvider, type ChatClient } from "./azure-openai.js";
 
 describe("AzureOpenAiProvider telemetry", () => {

@@ -1,0 +1,21 @@
+{
+  "name": "@kb/eval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Golden-set evaluation of the knowledge assistant: runner, LLM judge, metrics and reports.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.3",
+    "@kb/core": "0.1.0",
+    "@kb/governance": "0.1.0",
+    "@kb/knowledge-api": "0.1.0",
+    "@kb/llm-providers": "0.1.0",
+    "@kb/retrievers": "0.1.0",
+    "@kb/sample-docs": "0.1.0",
+    "@kb/test-support": "0.1.0",
+    "zod": "^4.6.5"
+  }
+}

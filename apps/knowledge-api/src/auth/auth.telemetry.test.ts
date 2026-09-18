@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { installTestTelemetry, type TestTelemetry } from "../../../../test-support/otel.js";
+import { installTestTelemetry, type TestTelemetry } from "@kb/test-support/otel";
 import { createClientAssertion } from "./client-assertion.js";
 import { GRAPH_DELEGATED_SCOPES, createOboExchanger } from "./obo.js";
 

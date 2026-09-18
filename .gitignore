@@ -39,3 +39,7 @@ apps/knowledge-api/deploy/
 # End-to-end test local configuration and token caches
 apps/knowledge-api/e2e/e2e.config.json
 apps/knowledge-api/e2e/.token-cache-*.json
+
+# Evaluation local configuration (reports under eval/reports/ are tracked)
+eval/eval.config.json
+eval/reports/*-mock.*

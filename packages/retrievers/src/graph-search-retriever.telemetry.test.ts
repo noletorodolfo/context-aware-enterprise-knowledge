@@ -4,7 +4,7 @@ import {
   allAttributeValues,
   installTestTelemetry,
   type TestTelemetry,
-} from "../../../test-support/otel.js";
+} from "@kb/test-support/otel";
 import { GraphSearchRetriever } from "./graph-search-retriever.js";
 
 const SITE = "https://contoso.sharepoint.com/sites/kb-demo";
