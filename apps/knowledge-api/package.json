@@ -13,6 +13,7 @@
     "@azure/identity": "^4.13.3",
     "@azure/keyvault-keys": "^4.10.2",
     "@kb/core": "0.1.0",
+    "@kb/governance": "0.1.0",
     "@kb/llm-providers": "0.1.0",
     "@kb/retrievers": "0.1.0",
     "jose": "^6.2.12",

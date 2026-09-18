@@ -9,7 +9,7 @@ export interface AuthenticatedUser {
 }
 
 export type TokenValidationResult =
-  | { ok: true; user: AuthenticatedUser; token: string }
+  | { ok: true; user: AuthenticatedUser; token: string; roles: string[] }
   | { ok: false; reason: TokenRejectionReason };
 
 export type TokenValidator = (
@@ -69,6 +69,11 @@ export function createTokenValidator(options: TokenValidatorOptions): TokenValid
 
     // "usuário" (not "unknown user"): this fallback can surface verbatim in the pt-BR mock
     // answer greeting, so it must already be in Portuguese.
-    return { ok: true, user: { objectId, name: name ?? "usuário" }, token };
+    const rolesClaim: unknown = payload["roles"];
+    const roles = Array.isArray(rolesClaim)
+      ? rolesClaim.filter((role): role is string => typeof role === "string")
+      : [];
+
+    return { ok: true, user: { objectId, name: name ?? "usuário" }, token, roles };
   };
 }

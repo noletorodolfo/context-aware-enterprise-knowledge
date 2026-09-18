@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { app, type HttpRequest, type InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
+import { maskPii } from "@kb/governance";
 import { AzureOpenAiProvider, createAzureOpenAiChatClient } from "@kb/llm-providers";
 import { GraphSearchRetriever } from "@kb/retrievers";
 import systemPromptV1 from "../../../../prompts/v1.md";
@@ -79,6 +80,7 @@ app.http("ask", {
         retriever,
         provider,
         logger: contextLogger(context),
+        maskPii,
         newCorrelationId: randomUUID,
         now: Date.now,
       },

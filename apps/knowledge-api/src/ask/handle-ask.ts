@@ -3,11 +3,15 @@ import {
   isUpstreamError,
   refusal,
   type Answer,
+  type AskResponse,
+  type Diagnostics,
   type PageContext,
   type Question,
+  type RefusalReason,
   type UpstreamErrorDetail,
   type UpstreamErrorKind,
 } from "@kb/core";
+import type { PiiMaskResult } from "@kb/governance";
 import type { LlmProvider, TokenUsage } from "@kb/llm-providers";
 import type { Retriever } from "@kb/retrievers";
 import type { TokenExchanger } from "../auth/obo.js";
@@ -37,9 +41,13 @@ export interface AskDependencies {
   retriever: Retriever;
   provider: LlmProvider;
   logger: AskLogger;
+  maskPii: (text: string) => PiiMaskResult;
   newCorrelationId: () => string;
   now: () => number;
 }
+
+/** App role whose holders receive pipeline diagnostics (evaluation runs). */
+export const EVALUATOR_ROLE = "Evaluator";
 
 const UPSTREAM_RESPONSES: Record<
   Exclude<UpstreamErrorKind, "llm-content-filtered">,
@@ -53,6 +61,7 @@ const UPSTREAM_RESPONSES: Record<
 
 /**
  * POST /api/ask, independent of the Azure Functions runtime.
+ * Personal data is masked before any dependency sees the question (fail closed).
  * Logs carry metadata only: question, document and answer text are never logged.
  */
 export async function handleAsk(
@@ -80,22 +89,30 @@ export async function handleAsk(
     return respond(400, { error: "invalid-request", field, correlationId });
   }
 
-  const { question: text, page: rawPage } = parsed.data;
+  const { question: rawText, page: rawPage } = parsed.data;
   const page: PageContext = {
     url: rawPage.url,
     title: rawPage.title,
     siteUrl: rawPage.siteUrl,
     ...(rawPage.listTitle !== undefined ? { listTitle: rawPage.listTitle } : {}),
   };
-  const question: Question = { text, page };
 
   try {
+    const pii = deps.maskPii(rawText);
+    const text = pii.masked;
+    const question: Question = { text, page };
+
     const graphToken = await deps.exchangeToken(auth.token, auth.user.objectId);
-    const { chunks, documentCount } = await deps.retriever.retrieve({ question: text, graphToken });
+    const oboDone = deps.now();
+    const { chunks, documentCount, documents } = await deps.retriever.retrieve({
+      question: text,
+      graphToken,
+    });
+    const retrievalDone = deps.now();
 
     let answer: Answer;
     let usage: TokenUsage | undefined;
-    let refusalReason: "no-relevant-documents" | "ungrounded" | "content-filter" | undefined;
+    let refusalReason: RefusalReason | undefined;
     let upstreamDetail: UpstreamErrorDetail | undefined;
 
     if (chunks.length === 0) {
@@ -121,12 +138,15 @@ export async function handleAsk(
         }
       }
     }
+    const generationDone = deps.now();
+    const finishedAt = deps.now();
+    const piiCount = pii.findings.reduce((sum, finding) => sum + finding.count, 0);
 
     deps.logger.info("ask.completed", {
       correlationId,
       status: 200,
-      questionLength: text.length,
-      durationMs: deps.now() - startedAt,
+      questionLength: rawText.length,
+      durationMs: finishedAt - startedAt,
       promptVersion: answer.promptVersion,
       documentCount,
       chunkCount: chunks.length,
@@ -134,6 +154,7 @@ export async function handleAsk(
       citationCount: answer.citations.length,
       refused: answer.refused,
       ...(refusalReason ? { refusalReason } : {}),
+      ...(piiCount > 0 ? { piiTypes: pii.findings.map((f) => f.type), piiCount } : {}),
       ...(upstreamDetail?.status !== undefined ? { upstreamStatus: upstreamDetail.status } : {}),
       ...(upstreamDetail?.code !== undefined ? { upstreamCode: upstreamDetail.code } : {}),
       ...(upstreamDetail?.innerCode !== undefined
@@ -141,7 +162,27 @@ export async function handleAsk(
         : {}),
       ...(usage ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : {}),
     });
-    return respond(200, answer);
+
+    const body: AskResponse = { ...answer, piiMasked: piiCount > 0 };
+    if (auth.roles.includes(EVALUATOR_ROLE)) {
+      const diagnostics: Diagnostics = {
+        promptVersion: answer.promptVersion,
+        ...(refusalReason ? { refusalReason } : {}),
+        pii: pii.findings,
+        retrieval: {
+          documents,
+          chunks: chunks.map((chunk) => ({ id: chunk.id, docId: chunk.docId, score: chunk.score })),
+        },
+        timingsMs: {
+          obo: oboDone - startedAt,
+          retrieval: retrievalDone - oboDone,
+          generation: generationDone - retrievalDone,
+          total: finishedAt - startedAt,
+        },
+      };
+      body.diagnostics = diagnostics;
+    }
+    return respond(200, body);
   } catch (error) {
     if (isUpstreamError(error)) {
       const mapped =

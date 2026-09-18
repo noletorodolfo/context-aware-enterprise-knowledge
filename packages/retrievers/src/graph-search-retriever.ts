@@ -1,4 +1,4 @@
-import { UpstreamError, type Chunk } from "@kb/core";
+import { UpstreamError, type Chunk, type RetrievedDocument } from "@kb/core";
 import { extractSections, type Section } from "./docx-sections.js";
 import {
   DEFAULT_LIMITS,
@@ -10,7 +10,10 @@ import { buildSearchQuery, extractKeywords } from "./text.js";
 
 export interface RetrievalResult {
   chunks: Chunk[];
+  /** In-scope documents considered (top N), including ones skipped for size or access. */
   documentCount: number;
+  /** Documents actually read, with their rank among the in-scope search hits. */
+  documents: RetrievedDocument[];
 }
 
 export interface Retriever {
@@ -67,7 +70,7 @@ export class GraphSearchRetriever implements Retriever {
     graphToken: string;
   }): Promise<RetrievalResult> {
     const keywords = extractKeywords(question);
-    if (keywords.length === 0) return { chunks: [], documentCount: 0 };
+    if (keywords.length === 0) return { chunks: [], documentCount: 0, documents: [] };
 
     const hits = await this.search(buildSearchQuery(keywords, this.options.siteUrls), graphToken);
     const documents = hits
@@ -83,13 +86,18 @@ export class GraphSearchRetriever implements Retriever {
       .slice(0, this.options.maxDocuments);
 
     const candidates: CandidateSection[] = [];
-    for (const doc of documents) {
+    const readable: RetrievedDocument[] = [];
+    for (const [index, doc] of documents.entries()) {
       if (!Number.isFinite(doc.size) || (doc.size ?? 0) > this.options.maxFileBytes) continue;
       const sections = await this.download(doc.parentReference.driveId ?? "", doc.id, graphToken);
+      const title = doc.name.replace(/\.docx$/i, "");
+      if (sections.length > 0) {
+        readable.push({ docId: doc.id, title, url: doc.webUrl, rank: index + 1 });
+      }
       sections.forEach((section, sectionIndex) =>
         candidates.push({
           docId: doc.id,
-          title: doc.name.replace(/\.docx$/i, ""),
+          title,
           url: doc.webUrl,
           sectionIndex,
           heading: section.heading,
@@ -101,6 +109,7 @@ export class GraphSearchRetriever implements Retriever {
     return {
       chunks: selectChunks(keywords, candidates, this.options.limits),
       documentCount: documents.length,
+      documents: readable,
     };
   }
 

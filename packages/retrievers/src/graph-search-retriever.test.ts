@@ -101,6 +101,14 @@ describe("GraphSearchRetriever", () => {
       "https://graph.microsoft.com/v1.0/drives/drive-a/items/a/content",
     ]);
     expect(result.documentCount).toBe(1);
+    expect(result.documents).toEqual([
+      {
+        docId: "a",
+        title: "politica-home-office",
+        url: `${SITE}/Politicas/politica-home-office.docx`,
+        rank: 1,
+      },
+    ]);
     expect(result.chunks).toHaveLength(1);
     expect(result.chunks[0]).toMatchObject({
       id: "a#0",
@@ -140,6 +148,10 @@ describe("GraphSearchRetriever", () => {
       "https://graph.microsoft.com/v1.0/drives/drive-ok/items/ok/content",
     ]);
     expect(result.documentCount).toBe(3);
+    // Only readable documents are reported, keeping their search rank among in-scope hits.
+    expect(result.documents).toEqual([
+      { docId: "ok", title: "ok", url: `${SITE}/D/ok.docx`, rank: 3 },
+    ]);
     expect(result.chunks.map((c) => c.docId)).toEqual(["ok"]);
   });
 
@@ -178,7 +190,7 @@ describe("GraphSearchRetriever", () => {
       graphToken: "t",
     });
     expect(requests).toHaveLength(0);
-    expect(result).toEqual({ chunks: [], documentCount: 0 });
+    expect(result).toEqual({ chunks: [], documentCount: 0, documents: [] });
   });
 
   it.each([

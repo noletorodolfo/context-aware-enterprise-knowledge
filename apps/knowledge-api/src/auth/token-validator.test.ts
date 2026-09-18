@@ -63,6 +63,7 @@ describe("createTokenValidator", () => {
       ok: true,
       user: { objectId: "user-object-id", name: "Test User A" },
       token,
+      roles: [],
     });
   });
 
@@ -74,6 +75,7 @@ describe("createTokenValidator", () => {
       ok: true,
       user: { objectId: "user-object-id", name: "a@contoso.com" },
       token,
+      roles: [],
     });
   });
 
@@ -85,7 +87,18 @@ describe("createTokenValidator", () => {
       ok: true,
       user: { objectId: "user-object-id", name: "usuário" },
       token,
+      roles: [],
     });
+  });
+
+  it("returns the app roles from the roles claim", async () => {
+    const result = await validate(`Bearer ${await sign({ ...baseClaims, roles: ["Evaluator"] })}`);
+    expect(result).toMatchObject({ ok: true, roles: ["Evaluator"] });
+  });
+
+  it("ignores a malformed roles claim", async () => {
+    const result = await validate(`Bearer ${await sign({ ...baseClaims, roles: "Evaluator" })}`);
+    expect(result).toMatchObject({ ok: true, roles: [] });
   });
 
   it.each([undefined, "", "Basic abc", "Bearer"])("rejects missing token (%s)", async (header) => {

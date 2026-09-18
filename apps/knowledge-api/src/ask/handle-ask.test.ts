@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { UpstreamError, refusal, type Answer, type Chunk } from "@kb/core";
+import { UpstreamError, refusal, type Answer, type AskResponse, type Chunk } from "@kb/core";
+import { maskPii } from "@kb/governance";
 import { MockLlmProvider, type LlmProvider } from "@kb/llm-providers";
 import type { Retriever } from "@kb/retrievers";
 import type { TokenValidationResult } from "../auth/token-validator.js";
@@ -49,7 +50,7 @@ function setup(
   const generate = vi.spyOn(provider, "generate");
   const exchangeToken = overrides.exchangeToken ?? vi.fn(() => Promise.resolve("graph-token"));
   const retriever: Retriever = overrides.retriever ?? {
-    retrieve: vi.fn(() => Promise.resolve({ chunks: [chunk], documentCount: 1 })),
+    retrieve: vi.fn(() => Promise.resolve({ chunks: [chunk], documentCount: 1, documents: [] })),
   };
   const deps: AskDependencies = {
     validateToken: () =>
@@ -58,12 +59,14 @@ function setup(
           ok: true,
           user: { objectId: "oid-a", name: "Test User A" },
           token: "user-token",
+          roles: [],
         },
       ),
     exchangeToken,
     retriever,
     provider,
     logger,
+    maskPii,
     newCorrelationId: () => "corr-1",
     now: () => (clock += 25),
   };
@@ -98,7 +101,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
-        durationMs: 25,
+        durationMs: 100,
         promptVersion: "mock",
         documentCount: 1,
         chunkCount: 1,
@@ -111,11 +114,13 @@ describe("handleAsk", () => {
 
   it("refuses without calling the model when nothing relevant is retrieved", async () => {
     const { deps, generate, logs } = setup({
-      retriever: { retrieve: () => Promise.resolve({ chunks: [], documentCount: 0 }) },
+      retriever: {
+        retrieve: () => Promise.resolve({ chunks: [], documentCount: 0, documents: [] }),
+      },
     });
     const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
     expect(res.status).toBe(200);
-    expect(res.jsonBody).toEqual(refusal("mock"));
+    expect(res.jsonBody).toEqual({ ...refusal("mock"), piiMasked: false });
     expect(generate).not.toHaveBeenCalled();
     expect(logs).toContainEqual({
       level: "info",
@@ -124,7 +129,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
-        durationMs: 25,
+        durationMs: 100,
         promptVersion: "mock",
         documentCount: 0,
         chunkCount: 0,
@@ -151,7 +156,7 @@ describe("handleAsk", () => {
     };
     const { deps, logs } = setup({ provider: inventing });
     const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
-    expect(res.jsonBody).toEqual(refusal("v1"));
+    expect(res.jsonBody).toEqual({ ...refusal("v1"), piiMasked: false });
     expect(logs).toContainEqual({
       level: "info",
       event: "ask.completed",
@@ -159,7 +164,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
-        durationMs: 25,
+        durationMs: 100,
         promptVersion: "v1",
         documentCount: 1,
         chunkCount: 1,
@@ -258,7 +263,7 @@ describe("handleAsk", () => {
     const { deps, logs } = setup({ provider: filtered });
     const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
     expect(res.status).toBe(200);
-    expect(res.jsonBody).toEqual(refusal("mock"));
+    expect(res.jsonBody).toEqual({ ...refusal("mock"), piiMasked: false });
     expect(logs).toContainEqual({
       level: "info",
       event: "ask.completed",
@@ -266,7 +271,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
-        durationMs: 25,
+        durationMs: 100,
         promptVersion: "mock",
         documentCount: 1,
         chunkCount: 1,
@@ -291,8 +296,81 @@ describe("handleAsk", () => {
     expect(logs).toContainEqual({
       level: "error",
       event: "ask.failed",
-      data: { correlationId: "corr-1", errorName: "TypeError", durationMs: 25 },
+      data: { correlationId: "corr-1", errorName: "TypeError", durationMs: 50 },
     });
+  });
+
+  it("masks personal data before retrieval and generation and flags the response", async () => {
+    const { deps, logs, retriever, generate } = setup();
+    const body = { ...validBody, question: "Meu CPF é 529.982.247-25, qual o auxílio?" };
+    const res = await handleAsk({ authorization: "Bearer x", body }, deps);
+
+    expect(res.status).toBe(200);
+    expect(retriever.retrieve).toHaveBeenCalledWith({
+      question: "Meu CPF é [CPF], qual o auxílio?",
+      graphToken: "graph-token",
+    });
+    expect(generate.mock.calls[0]?.[0].question.text).toBe("Meu CPF é [CPF], qual o auxílio?");
+    expect((res.jsonBody as AskResponse).piiMasked).toBe(true);
+    const completed = logs.find((entry) => entry.event === "ask.completed");
+    expect(completed?.data).toMatchObject({ piiTypes: ["cpf"], piiCount: 1 });
+    expect(JSON.stringify(logs)).not.toContain("529.982.247-25");
+    expect(JSON.stringify(res.jsonBody)).not.toContain("529.982.247-25");
+  });
+
+  it("does not return diagnostics without the Evaluator role", async () => {
+    const { deps } = setup({
+      auth: { ok: true, user: { objectId: "oid-b", name: "B" }, token: "t", roles: ["Reader"] },
+    });
+    const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
+    expect(res.jsonBody).not.toHaveProperty("diagnostics");
+  });
+
+  it("returns diagnostics to callers with the Evaluator role", async () => {
+    const documents = [{ docId: "item-1", title: "politica-home-office", url: chunk.url, rank: 1 }];
+    const { deps } = setup({
+      auth: { ok: true, user: { objectId: "oid-a", name: "A" }, token: "t", roles: ["Evaluator"] },
+      retriever: {
+        retrieve: () => Promise.resolve({ chunks: [chunk], documentCount: 1, documents }),
+      },
+    });
+    const body = { ...validBody, question: "Meu e-mail é a@b.com, qual o auxílio?" };
+    const res = await handleAsk({ authorization: "Bearer x", body }, deps);
+
+    expect((res.jsonBody as AskResponse).diagnostics).toEqual({
+      promptVersion: "mock",
+      pii: [{ type: "email", count: 1 }],
+      retrieval: { documents, chunks: [{ id: "item-1#1", docId: "item-1", score: 2 }] },
+      timingsMs: { obo: 25, retrieval: 25, generation: 25, total: 100 },
+    });
+  });
+
+  it("reports the refusal reason in diagnostics", async () => {
+    const { deps } = setup({
+      auth: { ok: true, user: { objectId: "oid-a", name: "A" }, token: "t", roles: ["Evaluator"] },
+      retriever: {
+        retrieve: () => Promise.resolve({ chunks: [], documentCount: 0, documents: [] }),
+      },
+    });
+    const res = await handleAsk({ authorization: "Bearer x", body: validBody }, deps);
+    expect((res.jsonBody as AskResponse).diagnostics?.refusalReason).toBe("no-relevant-documents");
+  });
+
+  it("fails closed when PII masking throws", async () => {
+    const { deps, exchangeToken, retriever } = setup();
+    const res = await handleAsk(
+      { authorization: "Bearer x", body: validBody },
+      {
+        ...deps,
+        maskPii: () => {
+          throw new Error("regex failure");
+        },
+      },
+    );
+    expect(res.status).toBe(500);
+    expect(res.jsonBody).toEqual({ error: "internal-error", correlationId: "corr-1" });
+    expect(exchangeToken).not.toHaveBeenCalled();
+    expect(retriever.retrieve).not.toHaveBeenCalled();
   });
 
   it("never logs question, document or answer text", async () => {
