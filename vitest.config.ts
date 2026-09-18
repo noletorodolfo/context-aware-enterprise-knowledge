@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@kb/core": src("./packages/core/src/index.ts"),
+      "@kb/governance": src("./packages/governance/src/index.ts"),
       "@kb/llm-providers": src("./packages/llm-providers/src/index.ts"),
       "@kb/retrievers": src("./packages/retrievers/src/index.ts"),
     },
