@@ -10,10 +10,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 5.5"
     }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 3.9"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.9"
@@ -21,16 +17,33 @@ terraform {
   }
 }
 
-# Azure resources live in the personal subscription (ADR-011).
+# Azure resources live in the personal subscription (ADR-011). The partner-tenant identity is the
+# separate root envs/dev-identity, applied locally by the operator (Phase 4 D1).
 provider "azurerm" {
-  features {}
   subscription_id     = var.subscription_id
   storage_use_azuread = true
+
+  features {
+    # A destroyed environment must come back under the same names (Phase 4 D5).
+    key_vault {
+      purge_soft_delete_on_destroy = true
+    }
+    cognitive_account {
+      purge_soft_delete_on_destroy = true
+    }
+  }
 }
 
-# Identity lives in the partner tenant (ADR-011).
-provider "azuread" {
-  tenant_id = var.tenant_id
+data "terraform_remote_state" "identity" {
+  backend = "azurerm"
+
+  config = {
+    resource_group_name  = var.state_resource_group_name
+    storage_account_name = var.state_storage_account_name
+    container_name       = var.state_container_name
+    key                  = "dev-identity.tfstate"
+    use_azuread_auth     = true
+  }
 }
 
 locals {
@@ -40,14 +53,6 @@ locals {
     managed_by  = "terraform"
     environment = "dev"
   }
-}
-
-module "identity" {
-  source = "../../modules/identity"
-
-  environment     = "dev"
-  test_user_a_upn = var.test_user_a_upn
-  test_user_b_upn = var.test_user_b_upn
 }
 
 resource "azurerm_resource_group" "dev" {
@@ -64,6 +69,11 @@ module "obo_certificate" {
   location            = azurerm_resource_group.dev.location
   tags                = local.tags
   subject_name        = "kb-knowledge-api-dev-obo"
+  name_suffix         = var.name_suffixes.key_vault
+
+  operator_object_id    = var.operator_object_id
+  ci_apply_principal_id = var.ci_apply_principal_id
+  ci_plan_principal_id  = var.ci_plan_principal_id
 }
 
 module "openai" {
@@ -76,6 +86,7 @@ module "openai" {
   model_name          = var.openai_model_name
   model_version       = var.openai_model_version
   capacity            = var.openai_capacity
+  name_suffix         = var.name_suffixes.openai
 }
 
 module "function_app" {
@@ -86,7 +97,8 @@ module "function_app" {
   location             = azurerm_resource_group.dev.location
   tags                 = local.tags
   tenant_id            = var.tenant_id
-  api_client_id        = module.identity.knowledge_api_client_id
+  api_client_id        = data.terraform_remote_state.identity.outputs.knowledge_api_client_id
+  name_suffix          = var.name_suffixes.function_app
   cors_allowed_origins = [var.sharepoint_origin]
 
   extra_app_settings = {
@@ -96,15 +108,6 @@ module "function_app" {
     AZURE_OPENAI_ENDPOINT   = module.openai.endpoint
     AZURE_OPENAI_DEPLOYMENT = module.openai.deployment_name
   }
-}
-
-# The API app registration (partner tenant) trusts the Key Vault certificate for client assertions.
-resource "azuread_application_certificate" "knowledge_api_obo" {
-  application_id = module.identity.knowledge_api_application_id
-  type           = "AsymmetricX509Cert"
-  encoding       = "base64"
-  value          = module.obo_certificate.certificate_data_base64
-  end_date       = module.obo_certificate.expires
 }
 
 # The Function may sign with the certificate key, never export it.
@@ -121,10 +124,8 @@ resource "azurerm_role_assignment" "function_openai" {
 }
 
 # The operator's own Azure CLI identity runs the evaluation judge locally (no API keys).
-data "azurerm_client_config" "current" {}
-
 resource "azurerm_role_assignment" "operator_openai" {
   scope                = module.openai.account_id
   role_definition_name = "Cognitive Services OpenAI User"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.operator_object_id
 }

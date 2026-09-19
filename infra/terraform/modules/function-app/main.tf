@@ -14,15 +14,20 @@ terraform {
   }
 }
 
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
+# The suffix used to be random; it is now an input so a destroyed environment comes back with the
+# same names (Phase 4 D5). Forget the old random_string without touching anything.
+removed {
+  from = random_string.suffix
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 locals {
-  suffix = random_string.suffix.result
+  suffix = var.name_suffix
 }
+
 
 resource "azurerm_storage_account" "host" {
   name                            = "stkbfunc${var.environment}${local.suffix}"

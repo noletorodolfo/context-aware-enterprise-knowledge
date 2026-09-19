@@ -13,19 +13,23 @@ terraform {
   }
 }
 
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
+# The suffix used to be random; it is now an input so a destroyed environment comes back with the
+# same names (Phase 4 D5). Forget the old random_string without touching anything.
+removed {
+  from = random_string.suffix
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 resource "azurerm_cognitive_account" "this" {
-  name                  = "oai-kb-${var.environment}-${random_string.suffix.result}"
+  name                  = "oai-kb-${var.environment}-${var.name_suffix}"
   resource_group_name   = var.resource_group_name
   location              = var.location
   kind                  = "OpenAI"
   sku_name              = "S0"
-  custom_subdomain_name = "oai-kb-${var.environment}-${random_string.suffix.result}"
+  custom_subdomain_name = "oai-kb-${var.environment}-${var.name_suffix}"
   local_auth_enabled    = false
   tags                  = var.tags
 }

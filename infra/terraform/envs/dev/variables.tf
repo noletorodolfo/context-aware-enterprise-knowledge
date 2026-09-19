@@ -29,14 +29,6 @@ variable "sharepoint_origin" {
   }
 }
 
-variable "test_user_a_upn" {
-  type = string
-}
-
-variable "test_user_b_upn" {
-  type = string
-}
-
 variable "search_site_urls" {
   description = "SharePoint site URLs the assistant may search, e.g. [\"https://contoso.sharepoint.com/sites/kb-demo\"]."
   type        = list(string)
@@ -65,4 +57,45 @@ variable "openai_model_version" {
 variable "openai_capacity" {
   type    = number
   default = 10
+}
+
+variable "name_suffixes" {
+  description = "Fixed suffixes of the global resource names, one per module (stable across recreations)."
+  type = object({
+    function_app = string
+    openai       = string
+    key_vault    = string
+  })
+}
+
+variable "operator_object_id" {
+  description = "Object ID of the human operator (OpenAI user for the evaluation judge, Key Vault certificates)."
+  type        = string
+}
+
+variable "ci_plan_principal_id" {
+  description = "Principal ID of the CI plan identity (bootstrap output ci_plan_principal_id)."
+  type        = string
+  default     = null
+}
+
+variable "ci_apply_principal_id" {
+  description = "Principal ID of the CI apply identity (bootstrap output ci_apply_principal_id)."
+  type        = string
+  default     = null
+}
+
+variable "state_resource_group_name" {
+  description = "Resource group of the Terraform state storage (bootstrap output)."
+  type        = string
+}
+
+variable "state_storage_account_name" {
+  description = "Storage account of the Terraform state (bootstrap output)."
+  type        = string
+}
+
+variable "state_container_name" {
+  type    = string
+  default = "tfstate"
 }
