@@ -2,6 +2,8 @@
 # On-Behalf-Of exchange. The private key is non-exportable: callers can only ask Key Vault to sign.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -26,6 +28,7 @@ removed {
   }
 }
 
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_key_vault" "this" {
   #checkov:skip=CKV_AZURE_189:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
   #checkov:skip=CKV_AZURE_109:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
@@ -70,6 +73,7 @@ resource "azurerm_role_assignment" "ci_plan_certificates" {
   principal_type       = "ServicePrincipal"
 }
 
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_key_vault_certificate" "obo" {
   name         = "obo-${var.environment}"
   key_vault_id = azurerm_key_vault.this.id

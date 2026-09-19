@@ -1,6 +1,8 @@
 # Azure OpenAI account without API keys (Entra ID only) and one chat model deployment.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"

@@ -70,6 +70,11 @@ resource "azurerm_storage_account" "tfstate" {
   }
 
   tags = local.tags
+
+  # Losing the state storage would orphan every environment.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_role_assignment" "tfstate_operator" {
@@ -85,6 +90,10 @@ resource "azurerm_storage_container" "tfstate" {
   container_access_type = "private"
 
   depends_on = [azurerm_role_assignment.tfstate_operator]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_consumption_budget_subscription" "guardrail" {

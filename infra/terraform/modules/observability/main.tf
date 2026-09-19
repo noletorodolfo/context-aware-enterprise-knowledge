@@ -2,6 +2,8 @@
 # (5xx rate above 5% over 15 minutes). Queries read counts and span attributes only, never question text.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"

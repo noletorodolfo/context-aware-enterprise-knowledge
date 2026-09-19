@@ -2,6 +2,8 @@
 # (no shared keys) and workspace-based Application Insights.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -29,6 +31,7 @@ locals {
 }
 
 
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_storage_account" "host" {
   #checkov:skip=CKV_AZURE_59:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
   #checkov:skip=CKV2_AZURE_33:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
@@ -52,6 +55,7 @@ resource "azurerm_storage_account" "host" {
   }
 }
 
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_storage_container" "deployments" {
   #checkov:skip=CKV2_AZURE_21:blob read logging needs diagnostic settings and adds cost; CI republishes the package
   name                  = "app-package"

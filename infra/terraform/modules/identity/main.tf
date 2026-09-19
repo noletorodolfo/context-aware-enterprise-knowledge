@@ -7,6 +7,8 @@
 # authorized on the "API access" page of the SharePoint Admin Center.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azuread = {
       source  = "hashicorp/azuread"
