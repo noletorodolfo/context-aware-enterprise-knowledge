@@ -123,6 +123,17 @@ resource "azurerm_role_assignment" "function_openai" {
   principal_id         = module.function_app.principal_id
 }
 
+module "observability" {
+  source = "../../modules/observability"
+
+  environment             = "dev"
+  resource_group_name     = azurerm_resource_group.dev.name
+  location                = azurerm_resource_group.dev.location
+  tags                    = local.tags
+  application_insights_id = module.function_app.application_insights_id
+  alert_email             = var.alert_email
+}
+
 # The operator's own Azure CLI identity runs the evaluation judge locally (no API keys).
 resource "azurerm_role_assignment" "operator_openai" {
   scope                = module.openai.account_id

@@ -14,3 +14,4 @@ state_storage_account_name = "stkbtfstatexxxxxx"
 # After bootstrap creates the CI identities:
 # ci_plan_principal_id  = "00000000-0000-0000-0000-000000000000"
 # ci_apply_principal_id = "00000000-0000-0000-0000-000000000000"
+alert_email = "you@example.com"

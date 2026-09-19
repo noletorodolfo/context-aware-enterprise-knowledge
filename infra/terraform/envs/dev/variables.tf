@@ -99,3 +99,8 @@ variable "state_container_name" {
   type    = string
   default = "tfstate"
 }
+
+variable "alert_email" {
+  description = "Receives the error-rate alert."
+  type        = string
+}
