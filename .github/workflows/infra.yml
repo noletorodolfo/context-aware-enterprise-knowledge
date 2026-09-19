@@ -1,0 +1,118 @@
+# Azure infrastructure (infra/terraform/envs/dev, personal subscription only).
+# Pull request: read-only plan, summarized (no values) in a PR comment.
+# main / manual: apply in the protected "dev" environment, after the owner approves.
+# The partner-tenant root (envs/dev-identity) is never touched by CI (Phase 4 D1).
+name: infra
+
+on:
+  pull_request:
+    paths:
+      - infra/terraform/envs/dev/**
+      - infra/terraform/modules/**
+      - scripts/terraform-ci.sh
+      - scripts/plan-summary.mjs
+      - .github/workflows/infra.yml
+  push:
+    branches: [main]
+    paths:
+      - infra/terraform/envs/dev/**
+      - infra/terraform/modules/**
+      - scripts/terraform-ci.sh
+      - scripts/plan-summary.mjs
+      - .github/workflows/infra.yml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: infra-dev
+  cancel-in-progress: false
+
+env:
+  ARM_USE_OIDC: "true"
+  ARM_USE_AZUREAD: "true"
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  plan:
+    # Forks get no OIDC token and no secrets: only ci.yml runs for them.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.2
+          terraform_wrapper: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Plan
+        id: terraform
+        run: bash scripts/terraform-ci.sh plan
+        env:
+          TF_VARS_DEV: ${{ secrets.TF_VARS_DEV }}
+          TF_BACKEND_DEV: ${{ secrets.TF_BACKEND_DEV }}
+      - name: Comment the summary on the pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SUMMARY_FILE: ${{ steps.terraform.outputs.summary }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- terraform-plan:dev -->";
+            const body = `${marker}\n### Terraform plan — envs/dev\n\n${fs.readFileSync(process.env.SUMMARY_FILE, "utf8")}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const previous = comments.find((c) => c.user.type === "Bot" && c.body.includes(marker));
+            if (previous) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  apply:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.2
+          terraform_wrapper: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_APPLY }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Plan and apply
+        id: terraform
+        run: bash scripts/terraform-ci.sh apply
+        env:
+          TF_VARS_DEV: ${{ secrets.TF_VARS_DEV }}
+          TF_BACKEND_DEV: ${{ secrets.TF_BACKEND_DEV }}
+      - name: Job summary
+        if: always() && steps.terraform.outputs.summary != ''
+        run: cat "${{ steps.terraform.outputs.summary }}" >> "$GITHUB_STEP_SUMMARY"
