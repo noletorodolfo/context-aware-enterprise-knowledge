@@ -1,10 +1,12 @@
 # Context-Aware Enterprise Knowledge Platform
 
+[![ci](https://github.com/noletorodolfo/context-aware-enterprise-knowledge/actions/workflows/ci.yml/badge.svg)](https://github.com/noletorodolfo/context-aware-enterprise-knowledge/actions/workflows/ci.yml)
+
 Corporate knowledge assistant embedded in SharePoint: answers questions **citing sources**
 and **respecting the permissions** of whoever is asking. Portfolio project with architecture, security,
 governed AI and infrastructure as code, at zero cost.
 
-> 🚧 Under construction. Current phase: **3 — Governance and quality** (done; next: 4 — Infrastructure and CI/CD). See the [full plan](docs/PLAN.md).
+> 🚧 Under construction. Current phase: **4 — Infrastructure and CI/CD** (done; next: 5 — Documentation and demo). See the [full plan](docs/PLAN.md).
 
 ## Language
 
@@ -14,21 +16,22 @@ users are Brazilian.
 
 ## Structure
 
-| Path                     | Content                                                                       |
-| ------------------------ | ----------------------------------------------------------------------------- |
-| `packages/core`          | Query context domain (citations, grounding)                                   |
-| `packages/retrievers`    | `GraphSearchRetriever` (AI Search retriever planned for Phase 6)              |
-| `packages/governance`    | PII detection and masking (CPF, CNPJ, email, phone)                           |
-| `packages/llm-providers` | LLM provider abstraction (Azure OpenAI, mock for tests)                       |
-| `apps/knowledge-api`     | Azure Functions API (`/api/ask`), token validation, OBO exchange              |
-| `apps/spfx-assistant`    | SharePoint Framework extension embedding the assistant                        |
-| `prompts/`               | Versioned prompts: answer (`v1.md`) and evaluation judge (`judge-v1.md`)      |
-| `eval/`                  | Golden set, evaluation runner, LLM judge and committed reports                |
-| `test-support/`          | Shared test helpers: test-user sign-in, in-memory OpenTelemetry               |
-| `tools/sample-docs`      | Generator for the fictional company's `.docx` files                           |
-| `samples/documents`      | Synthetic documents, including security test cases                            |
-| `infra/terraform`        | Remote state, budget, identity in Entra ID and the Knowledge API Function App |
-| `docs/`                  | Plan, setup guides and (soon) architecture and ADRs                           |
+| Path                     | Content                                                                    |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `packages/core`          | Query context domain (citations, grounding)                                |
+| `packages/retrievers`    | `GraphSearchRetriever` (AI Search retriever planned for Phase 6)           |
+| `packages/governance`    | PII detection and masking (CPF, CNPJ, email, phone)                        |
+| `packages/llm-providers` | LLM provider abstraction (Azure OpenAI, mock for tests)                    |
+| `apps/knowledge-api`     | Azure Functions API (`/api/ask`), token validation, OBO exchange           |
+| `apps/spfx-assistant`    | SharePoint Framework extension embedding the assistant                     |
+| `prompts/`               | Versioned prompts: answer (`v1.md`) and evaluation judge (`judge-v1.md`)   |
+| `eval/`                  | Golden set, evaluation runner, LLM judge and committed reports             |
+| `test-support/`          | Shared test helpers: test-user sign-in, in-memory OpenTelemetry            |
+| `tools/sample-docs`      | Generator for the fictional company's `.docx` files                        |
+| `samples/documents`      | Synthetic documents, including security test cases                         |
+| `infra/terraform`        | Remote state, budget, CI identities, Azure resources and Entra ID identity |
+| `.github/workflows`      | `ci` (checks), `infra` (Terraform plan/apply), `deploy` (API)              |
+| `docs/`                  | Plan, setup guides and (soon) architecture and ADRs                        |
 
 ## Quality
 
@@ -53,6 +56,15 @@ gpt-4.1-mini:
 The corpus has 8 synthetic documents, so these numbers are a regression baseline, not a
 prediction for a real intranet. Every request is traced with OpenTelemetry from the SharePoint
 panel to the model call in Application Insights.
+
+## Delivery
+
+Every pull request runs lint, typecheck, unit tests, the structural evaluation, the SharePoint package
+build and Terraform checks (fmt, validate, tflint, checkov). Infrastructure changes get a Terraform plan
+summary as a PR comment; merging applies them after the owner approves. The API deploys the same way.
+GitHub signs in to Azure with OIDC, so no Azure secret is stored. Logs and comments never show values
+from the partner tenant. A destroy-and-recreate drill brought the whole Azure environment back through
+the pipeline, with the same SharePoint package ([runbook](docs/setup/phase-4.md)).
 
 ## Running locally
 

@@ -31,6 +31,11 @@ provider "azurerm" {
     cognitive_account {
       purge_soft_delete_on_destroy = true
     }
+    # Application Insights creates a "Smart Detection" action group outside Terraform; rg-kb-dev holds
+    # only this project, so deleting the group with it is safe and keeps destroy one step.
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
   }
 }
 
