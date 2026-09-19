@@ -22,6 +22,7 @@ export default defineConfig({
       "apps/knowledge-api/**/*.test.ts",
       "eval/**/*.test.ts",
       "test-support/**/*.test.ts",
+      "scripts/**/*.test.mjs",
     ],
     exclude: ["**/node_modules/**", "**/e2e/**"],
   },
