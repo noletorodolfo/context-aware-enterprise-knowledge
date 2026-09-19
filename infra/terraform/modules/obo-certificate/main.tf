@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.9"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.13"
+    }
   }
 }
 
@@ -73,6 +77,17 @@ resource "azurerm_role_assignment" "ci_plan_certificates" {
   principal_type       = "ServicePrincipal"
 }
 
+# New Key Vault role assignments take minutes to reach the data plane; creating the certificate right
+# away (a fresh vault, e.g. in the recovery drill) fails with 403 without this pause.
+resource "time_sleep" "certificate_roles_propagation" {
+  create_duration = "120s"
+
+  depends_on = [
+    azurerm_role_assignment.operator_certificates,
+    azurerm_role_assignment.ci_apply_certificates,
+  ]
+}
+
 # tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_key_vault_certificate" "obo" {
   name         = "obo-${var.environment}"
@@ -112,5 +127,5 @@ resource "azurerm_key_vault_certificate" "obo" {
     }
   }
 
-  depends_on = [azurerm_role_assignment.operator_certificates]
+  depends_on = [time_sleep.certificate_roles_propagation]
 }

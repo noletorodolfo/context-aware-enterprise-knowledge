@@ -60,9 +60,12 @@ Read outputs from the `dev` environment (read-only, safe to run at any time):
 ```powershell
 & $tf "-chdir=infra/terraform/envs/dev" output -raw function_app_name
 & $tf "-chdir=infra/terraform/envs/dev" output -raw function_app_url
-& $tf "-chdir=infra/terraform/envs/dev" output -raw e2e_client_id
-& $tf "-chdir=infra/terraform/envs/dev" output -raw knowledge_api_identifier_uri
+& $tf "-chdir=infra/terraform/envs/dev-identity" output -raw e2e_client_id
+& $tf "-chdir=infra/terraform/envs/dev-identity" output -raw knowledge_api_identifier_uri
 ```
+
+> Since Phase 4 the partner-tenant identity is its own root, `envs/dev-identity`, so its
+> outputs (`e2e_client_id`, `knowledge_api_identifier_uri`, `identity`) are read there.
 
 The Function App already carries the Phase 2 app settings (`TENANT_ID`,
 `API_CLIENT_ID`, `SEARCH_SITE_URLS`, `KEY_VAULT_KEY_ID`,
