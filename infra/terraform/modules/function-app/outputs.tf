@@ -10,3 +10,11 @@ output "principal_id" {
   description = "Object ID of the Function App's system-assigned managed identity."
   value       = azurerm_function_app_flex_consumption.api.identity[0].principal_id
 }
+
+output "application_insights_id" {
+  value = azurerm_application_insights.this.id
+}
+
+output "log_analytics_workspace_id" {
+  value = azurerm_log_analytics_workspace.this.id
+}

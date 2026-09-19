@@ -1,0 +1,123 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "name": "title",
+      "content": {
+        "json": "# Knowledge API\nVolume, latency, refusals and dependency failures of `POST /api/ask`. Counts and span attributes only: no question or document text."
+      }
+    },
+    {
+      "type": 9,
+      "name": "parameters",
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "parameters": [
+          {
+            "id": "b1f0c2d4-0000-4000-8000-000000000001",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time range",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": 3,
+      "name": "volume",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where name == \"POST api/ask\"\n| summarize count() by bin(timestamp, 1h), status = strcat(substring(resultCode, 0, 1), \"xx\")\n| render timechart",
+        "size": 0,
+        "title": "Questions per hour by status class",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3,
+      "name": "latency",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where name == \"POST api/ask\" and resultCode == \"200\"\n| summarize p50 = percentile(duration, 50), p95 = percentile(duration, 95) by bin(timestamp, 1h)\n| render timechart",
+        "size": 0,
+        "title": "End-to-end latency (ms)",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3,
+      "name": "dependency_latency",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "dependencies\n| where name in (\"llm.generate\", \"graph.search\")\n| summarize p95 = percentile(duration, 95) by name, bin(timestamp, 1h)\n| render timechart",
+        "size": 0,
+        "title": "p95 of the model call and the Graph search (ms)",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3,
+      "name": "refusals",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "dependencies\n| where name == \"ask\"\n| extend refused = tostring(customDimensions[\"kb.refused\"]) == \"true\", reason = tostring(customDimensions[\"kb.refusal.reason\"])\n| summarize answers = count(), refusals = countif(refused), refusal_rate_pct = round(100.0 * countif(refused) / count(), 1) by reason = iff(isempty(reason), \"(answered)\", reason)\n| order by answers desc",
+        "size": 0,
+        "title": "Answers and refusals",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      }
+    },
+    {
+      "type": 3,
+      "name": "failures",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "traces\n| where message has \"ask.upstream-failed\"\n| extend d = parse_json(message)\n| summarize failures = count() by errKind = tostring(d[\"kind\"]), httpStatus = tostring(d.status), errCode = tostring(d.code)\n| order by failures desc",
+        "size": 0,
+        "title": "Dependency failures (Azure OpenAI throttling shows as llm-unavailable / 429)",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      }
+    }
+  ],
+  "fallbackResourceIds": ["${app_insights_id}"],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

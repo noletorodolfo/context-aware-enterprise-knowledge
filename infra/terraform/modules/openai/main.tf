@@ -1,6 +1,8 @@
 # Azure OpenAI account without API keys (Entra ID only) and one chat model deployment.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -13,21 +15,35 @@ terraform {
   }
 }
 
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
+# The suffix used to be random; it is now an input so a destroyed environment comes back with the
+# same names (Phase 4 D5). Forget the old random_string without touching anything.
+removed {
+  from = random_string.suffix
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 resource "azurerm_cognitive_account" "this" {
-  name                  = "oai-kb-${var.environment}-${random_string.suffix.result}"
+  #checkov:skip=CKV_AZURE_134:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_247:outbound access is restricted with an empty allow list, stricter than the listed FQDNs the check expects
+  #checkov:skip=CKV2_AZURE_22:Microsoft-managed keys; a customer-managed key needs a Key Vault key and more cost
+  name                  = "oai-kb-${var.environment}-${var.name_suffix}"
   resource_group_name   = var.resource_group_name
   location              = var.location
   kind                  = "OpenAI"
   sku_name              = "S0"
-  custom_subdomain_name = "oai-kb-${var.environment}-${random_string.suffix.result}"
+  custom_subdomain_name = "oai-kb-${var.environment}-${var.name_suffix}"
   local_auth_enabled    = false
   tags                  = var.tags
+
+  # The model never calls out; block outbound traffic (data loss prevention).
+  outbound_network_access_restricted = true
+
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 resource "azurerm_cognitive_deployment" "chat" {

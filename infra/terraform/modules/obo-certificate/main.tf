@@ -2,6 +2,8 @@
 # On-Behalf-Of exchange. The private key is non-exportable: callers can only ask Key Vault to sign.
 
 terraform {
+  required_version = ">= 1.9"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -16,14 +18,24 @@ terraform {
 
 data "azurerm_client_config" "current" {}
 
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
+# The suffix used to be random; it is now an input so a destroyed environment comes back with the
+# same names (Phase 4 D5). Forget the old random_string without touching anything.
+removed {
+  from = random_string.suffix
+
+  lifecycle {
+    destroy = false
+  }
 }
 
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_key_vault" "this" {
-  name                       = "kv-kb-${var.environment}-${random_string.suffix.result}"
+  #checkov:skip=CKV_AZURE_189:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_109:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV2_AZURE_32:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_110:purge protection would block recreating the vault under the same name (Phase 4 D5)
+  #checkov:skip=CKV_AZURE_42:soft delete is on (7 days); full recoverability also needs purge protection, see above
+  name                       = "kv-kb-${var.environment}-${var.name_suffix}"
   resource_group_name        = var.resource_group_name
   location                   = var.location
   tenant_id                  = data.azurerm_client_config.current.tenant_id
@@ -34,13 +46,34 @@ resource "azurerm_key_vault" "this" {
   tags                       = var.tags
 }
 
-# The operator running Terraform needs data-plane rights to create the certificate.
+# Whoever applies Terraform needs data-plane rights to create the certificate: the operator locally
+# and the CI apply identity in the pipeline. Fixed principals, not "whoever runs this" (Phase 4).
 resource "azurerm_role_assignment" "operator_certificates" {
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Certificates Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.operator_object_id
 }
 
+resource "azurerm_role_assignment" "ci_apply_certificates" {
+  count = var.ci_apply_principal_id == null ? 0 : 1
+
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Certificates Officer"
+  principal_id         = var.ci_apply_principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+# Pull request plans refresh the certificate, which is a data-plane read.
+resource "azurerm_role_assignment" "ci_plan_certificates" {
+  count = var.ci_plan_principal_id == null ? 0 : 1
+
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Certificate User"
+  principal_id         = var.ci_plan_principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
 resource "azurerm_key_vault_certificate" "obo" {
   name         = "obo-${var.environment}"
   key_vault_id = azurerm_key_vault.this.id

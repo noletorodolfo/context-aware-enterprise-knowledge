@@ -29,3 +29,12 @@ variable "budget_contact_email" {
   description = "Email that receives the budget alerts."
   type        = string
 }
+
+variable "github_repository" {
+  description = <<-EOT
+    GitHub repository whose workflows may sign in to Azure, as it appears in the OIDC token subject.
+    GitHub now includes the immutable owner and repository IDs (owner@id/name@id); the IDs are public.
+  EOT
+  type        = string
+  default     = "noletorodolfo@101566273/context-aware-enterprise-knowledge@1373185839"
+}
