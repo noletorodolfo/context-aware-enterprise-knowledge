@@ -29,3 +29,9 @@ variable "budget_contact_email" {
   description = "Email that receives the budget alerts."
   type        = string
 }
+
+variable "github_repository" {
+  description = "GitHub repository (owner/name) whose workflows may sign in to Azure."
+  type        = string
+  default     = "noletorodolfo/context-aware-enterprise-knowledge"
+}

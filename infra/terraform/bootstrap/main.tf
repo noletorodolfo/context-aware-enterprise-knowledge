@@ -107,3 +107,68 @@ resource "azurerm_consumption_budget_subscription" "guardrail" {
     contact_emails = [var.budget_contact_email]
   }
 }
+
+# --- GitHub Actions identities (OIDC, no secrets) -----------------------------------------------
+# Only the personal subscription is reachable from CI; the partner tenant is never (ADR-011, Phase 4 D1).
+
+resource "azurerm_resource_group" "ci" {
+  name     = "rg-kb-ci"
+  location = var.location
+  tags     = local.tags
+}
+
+# Pull requests: read-only plans.
+resource "azurerm_user_assigned_identity" "ci_plan" {
+  name                = "id-kb-ci-plan"
+  resource_group_name = azurerm_resource_group.ci.name
+  location            = azurerm_resource_group.ci.location
+  tags                = local.tags
+}
+
+# The protected "dev" environment: applies and deployments, after the owner approves.
+resource "azurerm_user_assigned_identity" "ci_apply" {
+  name                = "id-kb-ci-apply"
+  resource_group_name = azurerm_resource_group.ci.name
+  location            = azurerm_resource_group.ci.location
+  tags                = local.tags
+}
+
+locals {
+  github_issuer = "https://token.actions.githubusercontent.com"
+}
+
+resource "azurerm_federated_identity_credential" "ci_plan_pull_request" {
+  name                      = "github-pull-request"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci_plan.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.github_issuer
+  subject                   = "repo:${var.github_repository}:pull_request"
+}
+
+resource "azurerm_federated_identity_credential" "ci_apply_environment" {
+  name                      = "github-environment-dev"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci_apply.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.github_issuer
+  subject                   = "repo:${var.github_repository}:environment:dev"
+}
+
+locals {
+  subscription_scope = "/subscriptions/${var.subscription_id}"
+  ci_role_assignments = {
+    plan_reader        = { principal = azurerm_user_assigned_identity.ci_plan.principal_id, role = "Reader", scope = local.subscription_scope }
+    plan_state         = { principal = azurerm_user_assigned_identity.ci_plan.principal_id, role = "Storage Blob Data Contributor", scope = azurerm_storage_container.tfstate.id }
+    apply_contributor  = { principal = azurerm_user_assigned_identity.ci_apply.principal_id, role = "Contributor", scope = local.subscription_scope }
+    apply_access_admin = { principal = azurerm_user_assigned_identity.ci_apply.principal_id, role = "User Access Administrator", scope = local.subscription_scope }
+    apply_state        = { principal = azurerm_user_assigned_identity.ci_apply.principal_id, role = "Storage Blob Data Contributor", scope = azurerm_storage_container.tfstate.id }
+  }
+}
+
+resource "azurerm_role_assignment" "ci" {
+  for_each = local.ci_role_assignments
+
+  principal_id         = each.value.principal
+  principal_type       = "ServicePrincipal"
+  role_definition_name = each.value.role
+  scope                = each.value.scope
+}
