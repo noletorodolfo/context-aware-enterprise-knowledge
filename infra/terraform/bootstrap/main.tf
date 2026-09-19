@@ -46,6 +46,11 @@ resource "random_string" "suffix" {
 }
 
 resource "azurerm_storage_account" "tfstate" {
+  #checkov:skip=CKV_AZURE_59:GitHub-hosted runners and the operator reach the state over the public endpoint with Entra ID auth only (no keys)
+  #checkov:skip=CKV2_AZURE_33:no private endpoints or VNet in a zero-cost demo; access is Entra ID only (no keys)
+  #checkov:skip=CKV_AZURE_206:LRS with blob versioning and soft delete is enough for a demo's state
+  #checkov:skip=CKV_AZURE_33:no queues are used; diagnostic logs would add cost
+  #checkov:skip=CKV2_AZURE_1:Microsoft-managed keys; a customer-managed key needs a Key Vault key and more cost
   name                            = "stkbtfstate${random_string.suffix.result}"
   resource_group_name             = azurerm_resource_group.tfstate.name
   location                        = azurerm_resource_group.tfstate.location
@@ -74,6 +79,7 @@ resource "azurerm_role_assignment" "tfstate_operator" {
 }
 
 resource "azurerm_storage_container" "tfstate" {
+  #checkov:skip=CKV2_AZURE_21:blob read logging needs diagnostic settings and adds cost; versioning keeps every state change
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"

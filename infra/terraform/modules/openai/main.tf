@@ -24,6 +24,9 @@ removed {
 }
 
 resource "azurerm_cognitive_account" "this" {
+  #checkov:skip=CKV_AZURE_134:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_247:outbound access is restricted with an empty allow list, stricter than the listed FQDNs the check expects
+  #checkov:skip=CKV2_AZURE_22:Microsoft-managed keys; a customer-managed key needs a Key Vault key and more cost
   name                  = "oai-kb-${var.environment}-${var.name_suffix}"
   resource_group_name   = var.resource_group_name
   location              = var.location
@@ -32,6 +35,13 @@ resource "azurerm_cognitive_account" "this" {
   custom_subdomain_name = "oai-kb-${var.environment}-${var.name_suffix}"
   local_auth_enabled    = false
   tags                  = var.tags
+
+  # The model never calls out; block outbound traffic (data loss prevention).
+  outbound_network_access_restricted = true
+
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 resource "azurerm_cognitive_deployment" "chat" {

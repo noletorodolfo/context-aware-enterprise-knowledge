@@ -1,0 +1,6 @@
+# Findings are fixed or skipped inline in the Terraform code with a reason (#checkov:skip=ID:reason).
+framework:
+  - terraform
+compact: true
+quiet: true
+download-external-modules: false

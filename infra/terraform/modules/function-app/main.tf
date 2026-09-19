@@ -30,6 +30,11 @@ locals {
 
 
 resource "azurerm_storage_account" "host" {
+  #checkov:skip=CKV_AZURE_59:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV2_AZURE_33:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_206:LRS is enough for a deployment package that CI can republish
+  #checkov:skip=CKV_AZURE_33:the Function host does not use queues; diagnostic logs would add cost
+  #checkov:skip=CKV2_AZURE_1:Microsoft-managed keys; a customer-managed key needs a Key Vault key and more cost
   name                            = "stkbfunc${var.environment}${local.suffix}"
   resource_group_name             = var.resource_group_name
   location                        = var.location
@@ -39,9 +44,16 @@ resource "azurerm_storage_account" "host" {
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
   tags                            = var.tags
+
+  blob_properties {
+    delete_retention_policy {
+      days = 7
+    }
+  }
 }
 
 resource "azurerm_storage_container" "deployments" {
+  #checkov:skip=CKV2_AZURE_21:blob read logging needs diagnostic settings and adds cost; CI republishes the package
   name                  = "app-package"
   storage_account_id    = azurerm_storage_account.host.id
   container_access_type = "private"
@@ -67,6 +79,8 @@ resource "azurerm_application_insights" "this" {
 }
 
 resource "azurerm_service_plan" "this" {
+  #checkov:skip=CKV_AZURE_212:Flex Consumption scales from zero; always-ready instances would cost money
+  #checkov:skip=CKV_AZURE_225:Flex Consumption plans are not zone redundant in this region; a demo accepts it
   name                = "asp-kb-${var.environment}-${local.suffix}"
   resource_group_name = var.resource_group_name
   location            = var.location

@@ -27,6 +27,11 @@ removed {
 }
 
 resource "azurerm_key_vault" "this" {
+  #checkov:skip=CKV_AZURE_189:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_109:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV2_AZURE_32:no private endpoints or VNet in a zero-cost demo; the Function (Flex, no VNet) and CI runners reach it over the public endpoint with Entra ID auth
+  #checkov:skip=CKV_AZURE_110:purge protection would block recreating the vault under the same name (Phase 4 D5)
+  #checkov:skip=CKV_AZURE_42:soft delete is on (7 days); full recoverability also needs purge protection, see above
   name                       = "kv-kb-${var.environment}-${var.name_suffix}"
   resource_group_name        = var.resource_group_name
   location                   = var.location
