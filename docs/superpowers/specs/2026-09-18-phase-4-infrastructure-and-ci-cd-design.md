@@ -16,7 +16,7 @@
 | D2  | The repository becomes **public** during this phase. The `dev` environment requires the owner's approval for `apply` and `deploy`.                                                                                                                                            | GitHub Free offers environments and required reviewers only on public repositories. The git history was already rewritten to remove partner data. |
 | D3  | Nothing that identifies the partner reaches GitHub. Partner values enter CI as secrets, which Actions masks. Values read from the identity state are masked with `::add-mask::`. Plan and apply output go to files; logs and PR comments show only a resource/action summary. | Public logs, PR comments and artifacts are readable by anyone.                                                                                    |
 | D4  | CI builds and tests the `.sppkg` with `config/api.example.json` and never publishes it. The real package keeps being built locally and uploaded by the operator.                                                                                                              | The real package embeds the partner app's client ID.                                                                                              |
-| D5  | Recreation is deterministic: a `name_suffix` variable replaces the `random_string` suffixes (set to today's values). The provider purges Key Vault and Azure OpenAI on destroy.                                                                                               | Same names after a recreate mean the same Function URL, so the SharePoint package and local configs keep working.                                 |
+| D5  | Recreation is deterministic: a `name_suffixes` variable (one suffix per module, set to today's values) replaces the three `random_string` suffixes. The provider purges Key Vault and Azure OpenAI on destroy.                                                                | Same names after a recreate mean the same Function URL, so the SharePoint package and local configs keep working.                                 |
 | D6  | The DoD is proven for real: destroy `envs/dev`, recreate it through the pipeline, re-register the new OBO certificate with a local `apply` of `envs/dev-identity`, redeploy, and pass the E2E test **without a new `.sppkg`**.                                                | A drill on the real environment is the only convincing proof.                                                                                     |
 | D7  | CI identities are user-assigned managed identities with GitHub federated credentials, created in `bootstrap`: `id-kb-ci-plan` (read only, pull requests) and `id-kb-ci-apply` (write, `dev` environment only).                                                                | OIDC with no app registration and no secret. Pull requests cannot write.                                                                          |
 
@@ -49,8 +49,9 @@ access approval stay manual and documented), OpenAI capacity changes (stays at 1
 
 ### 2.3 Changes in `envs/dev` and its modules
 
-- `name_suffix` (string, 6 lowercase alphanumerics) replaces `random_string.suffix` in `obo-certificate`,
-  `openai` and `function-app`. The migration uses `removed` for the old `random_string`, so no name changes.
+- `name_suffixes` (object `{ function_app, openai, key_vault }`, each 6 lowercase alphanumerics) replaces
+  `random_string.suffix` in `function-app`, `openai` and `obo-certificate`. Today the three suffixes differ, so
+  each keeps its current value. The migration uses `removed` for the old `random_string`, so no name changes.
 - `provider "azurerm" { features { key_vault { purge_soft_delete_on_destroy = true } cognitive_account { purge_soft_delete_on_destroy = true } } }`.
 - `operator_object_id` (variable) replaces `data.azurerm_client_config.current` for the operator's
   _Cognitive Services OpenAI User_ (evaluation judge) and _Key Vault Certificates Officer_. The identity
@@ -91,7 +92,7 @@ where Azure login happens) and use Node 22.
   block are printed, after masking.
 - Secrets: `AZURE_CLIENT_ID_PLAN`, `AZURE_CLIENT_ID_APPLY`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
   `TF_BACKEND_*` (state storage) and `TF_VAR_*` for every `envs/dev` variable (partner tenant ID,
-  SharePoint origin, site URLs, operator object ID, name suffix, alert email).
+  SharePoint origin, site URLs, operator object ID, name suffixes, alert email).
 
 ### 3.3 `deploy.yml` — API
 
@@ -143,7 +144,7 @@ where Azure login happens) and use Node 22.
 
 ## 8. Execution order
 
-1. Terraform: `name_suffix`, `operator_object_id`, purge settings; split roots with `import`/`removed` (operator applies both, 0 to destroy).
+1. Terraform: `name_suffixes`, `operator_object_id`, purge settings; split roots with `import`/`removed` (operator applies both, 0 to destroy).
 2. `bootstrap`: CI identities and roles (operator applies).
 3. `modules/observability` (applied locally first, to check the workbook and alert).
 4. `scripts/plan-summary.mjs` with tests; `ci.yml`, `infra.yml`, `deploy.yml`.
