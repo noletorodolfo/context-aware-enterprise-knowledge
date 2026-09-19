@@ -179,6 +179,31 @@ locals {
   }
 }
 
+# Reader cannot call the POST "list" actions the azurerm provider uses to refresh state. This role adds
+# only those reads (found with TF_LOG=DEBUG on a plan): no write, delete or data-plane access.
+resource "azurerm_role_definition" "ci_plan_reader" {
+  name        = "kb-ci-plan-reader"
+  scope       = local.subscription_scope
+  description = "Extra read actions Terraform needs to plan the Knowledge API environment."
+
+  permissions {
+    actions = [
+      "Microsoft.Web/sites/config/list/action",
+      "Microsoft.Storage/storageAccounts/listKeys/action",
+      "Microsoft.OperationalInsights/workspaces/sharedKeys/action",
+    ]
+  }
+
+  assignable_scopes = [local.subscription_scope]
+}
+
+resource "azurerm_role_assignment" "ci_plan_reader" {
+  principal_id       = azurerm_user_assigned_identity.ci_plan.principal_id
+  principal_type     = "ServicePrincipal"
+  role_definition_id = azurerm_role_definition.ci_plan_reader.role_definition_resource_id
+  scope              = local.subscription_scope
+}
+
 resource "azurerm_role_assignment" "ci" {
   for_each = local.ci_role_assignments
 
