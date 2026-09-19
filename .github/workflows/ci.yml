@@ -65,8 +65,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: checkov
-        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
-        with:
-          directory: infra/terraform
-          framework: terraform
-          config_file: .checkov.yaml
+        # Pinned through pip so CI and local runs use the same version and rules.
+        run: |
+          pipx install checkov==3.3.19
+          checkov --directory infra/terraform --config-file .checkov.yaml
