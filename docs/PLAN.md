@@ -320,6 +320,8 @@ Goal: all **Must** items done within 7 days. Should and Could come later, with n
 
 **Done when:** a destroyed environment is recreated with just `terraform apply` + pipeline, and the PR shows the commented `plan`.
 
+**Result (2026-09-19):** done. The Azure root was destroyed and recreated by the approved `infra` workflow. One local `terraform apply` re-registered the OBO certificate in the partner tenant, and `deploy` republished the API. E2E 4/4 and the evaluation passed with the same SharePoint package. CI signs in with OIDC. It never touches the partner tenant, and plan comments carry no values. Runbook: `docs/setup/phase-4.md`.
+
 ### Phase 5 — Documentation and demo · Must · ~1 day
 
 - Product README, `architecture.md` with C4, ADRs 001–010, `security.md`, `runbook.md`, `certifications.md`.

@@ -1,6 +1,6 @@
 # Phase 4 — Infrastructure and CI/CD: design
 
-- **Status:** approved in conversation (2026-09-18); pending review of this document
+- **Status:** approved (2026-09-18); implemented (2026-09-19). Deviation: resources moved between states with `terraform state mv` instead of `import` blocks, so no partner IDs reached tracked files (see the plan).
 - **Scope:** `docs/PLAN.md`, section 11, Phase 4
 - **Builds on:** Phase 3 (`docs/superpowers/specs/2026-09-18-phase-3-governance-and-quality-design.md`), ADR-011 (two tenants)
 - **Goal:** GitHub Actions verifies every change, applies the Azure infrastructure with approval, and
