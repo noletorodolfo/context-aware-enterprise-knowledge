@@ -14,7 +14,7 @@ export interface E2eConfig {
 export const E2E_DIR = new URL("../../apps/knowledge-api/e2e/", import.meta.url);
 
 /** Token cache file of a test user, next to the end-to-end configuration. */
-export const tokenCacheFile = (user: "a" | "b"): URL =>
+export const tokenCacheFile = (user: "a" | "b" | "indexer"): URL =>
   new URL(`.token-cache-${user}.json`, E2E_DIR);
 
 export function loadE2eConfig(path: URL = new URL("e2e.config.json", E2E_DIR)): E2eConfig {

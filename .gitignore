@@ -42,4 +42,5 @@ apps/knowledge-api/e2e/.token-cache-*.json
 
 # Evaluation local configuration (reports under eval/reports/ are tracked)
 eval/eval.config.json
+tools/indexer/indexer.config.json
 eval/reports/*-mock.*

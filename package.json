@@ -19,6 +19,7 @@
     "typecheck": "tsc -b && tsc -p apps/knowledge-api/tsconfig.contract.json",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "index": "tsc -b && node tools/indexer/dist/cli.js",
     "eval": "tsc -b && node eval/dist/cli.js",
     "eval:mock": "npm run eval -- --mock",
     "test:spfx": "node scripts/check-spfx-installed.mjs && npm --prefix apps/spfx-assistant run test:unit",
