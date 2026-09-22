@@ -1,0 +1,109 @@
+# Operations runbook
+
+This document is the public operational index. It deliberately names no live tenant, subscription,
+host or identity value. Detailed, phase-specific commands and evidence remain in the linked runbooks.
+
+## Operator responsibilities
+
+| Activity                                          | Owner                                               | Boundary                                               |
+| ------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| SharePoint package upload and API access approval | Microsoft 365 operator                              | Partner tenant, manual                                 |
+| Partner identity Terraform root                   | Microsoft 365 operator                              | Local machine only                                     |
+| Azure bootstrap Terraform root                    | Azure subscription owner                            | Local machine only                                     |
+| Azure runtime Terraform root                      | GitHub Actions after protected-environment approval | Azure subscription only                                |
+| API deployment                                    | GitHub Actions after protected-environment approval | Azure subscription only                                |
+| E2E and real evaluation                           | Operator                                            | Interactive test users and ignored local configuration |
+
+## Configure a development environment
+
+1. Install Node 22, Terraform and the Azure CLI.
+2. Copy the Terraform `*.tfvars.example` files to ignored local `terraform.tfvars` files and fill
+   them with live values. Create ignored backend configuration files for each Terraform root.
+3. Copy `apps/knowledge-api/e2e/e2e.config.example.json` to its ignored local counterpart.
+4. Install dependencies and run the safe checks:
+
+```bash
+npm install
+npm --prefix apps/spfx-assistant install
+npm run check
+npm run eval:mock
+```
+
+The exact initial provisioning order is documented in [Phase 0](setup/phase-0.md), [Phase 2](setup/phase-2.md)
+and [Phase 4](setup/phase-4.md). Do not place live configuration in issues, pull requests or tracked files.
+
+## Deploy and verify
+
+The public repository uses three workflows:
+
+| Workflow     | Trigger                                     | Result                                                                      |
+| ------------ | ------------------------------------------- | --------------------------------------------------------------------------- |
+| `ci.yml`     | Pull request and `main`                     | checks, mock evaluation, SPFx package build and Terraform static validation |
+| `infra.yml`  | Azure-runtime Terraform changes or dispatch | value-free PR plan; protected approved apply                                |
+| `deploy.yml` | API/package/prompt change or dispatch       | protected API package deployment and unauthenticated 401 smoke test         |
+
+The actual SharePoint package is built locally using its ignored API configuration and uploaded by the
+operator. That keeps the live Entra app identifier out of public CI artifacts.
+
+After a deployment:
+
+```bash
+npm run test:e2e
+npm run eval
+```
+
+`test:e2e` proves the permission boundary with two interactive accounts. `eval` runs 30 cases and
+produces a date-stamped report. See [Phase 2](setup/phase-2.md) and [Phase 3](setup/phase-3.md) for
+failure behavior, retry notes and interpretation.
+
+## Observe and troubleshoot
+
+The Application Insights workbook contains request volume, p50/p95 latency, Graph and model dependency
+latency, refusal rates and upstream failures. The error-rate alert evaluates 5xx responses over a
+15-minute window once at least five requests exist.
+
+Error messages in the panel end with a trace code. Query the Log Analytics API with that code to follow the request,
+OBO, retrieval and model spans. The exact KQL and REST command are in
+[Phase 3: Follow one question as a single trace](setup/phase-3.md#follow-one-question-as-a-single-trace).
+
+For availability incidents:
+
+1. Check the workbook and alert history before changing configuration.
+2. Match a trace code to its content-free `ask.upstream-failed` dimensions.
+3. Treat model content-filter outcomes as a safe refusal, not as an invitation to log prompt content.
+4. Restore Terraform-owned drift through an approved `infra.yml` run rather than by retaining manual
+   configuration edits.
+
+## Recover the Azure runtime
+
+The Azure runtime and partner identity have distinct state. A full rebuild uses this order:
+
+1. Run the partner identity root once to establish the app and groups.
+2. Run the Azure runtime root through the approved infrastructure workflow.
+3. Run the partner identity root again to register the freshly created OBO certificate.
+4. Dispatch and approve API deployment.
+5. Run E2E and real evaluation with the unchanged SharePoint package.
+
+This process was proven in a destroy-and-recreate drill. The timing, the required Key Vault role
+propagation pause and the Application Insights Smart Detection pitfall are recorded in
+[Phase 4](setup/phase-4.md#recovery-drill).
+
+## Rotate and revoke
+
+- The OBO certificate is non-exportable and renews through Key Vault policy. After renewal, run an
+  approved `infra.yml` apply first, so the Azure root publishes the new certificate output, then
+  apply the partner identity root so the application registration receives the current public
+  certificate.
+- If a token cache is no longer appropriate, delete the ignored local token-cache files and sign in
+  again. Never commit them.
+- If any live value reaches a public location, follow the disclosure procedure in
+  [security.md](security.md#incident-and-disclosure-rules) immediately.
+
+## Related detailed runbooks
+
+- [Phase 0 - Foundation](setup/phase-0.md)
+- [Phase 1 - End-to-end skeleton](setup/phase-1.md)
+- [Phase 2 - Permission-aware retrieval](setup/phase-2.md)
+- [Phase 3 - Governance and quality](setup/phase-3.md)
+- [Phase 4 - Infrastructure and CI/CD](setup/phase-4.md)
+- [Phase 5 - Documentation and demo](setup/phase-5.md)
