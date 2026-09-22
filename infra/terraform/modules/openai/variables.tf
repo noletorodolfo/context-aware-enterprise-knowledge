@@ -37,3 +37,19 @@ variable "name_suffix" {
     error_message = "name_suffix must be 6 lowercase letters or digits."
   }
 }
+
+variable "embedding_model_name" {
+  type    = string
+  default = "text-embedding-3-small"
+}
+
+variable "embedding_model_version" {
+  type    = string
+  default = "1"
+}
+
+variable "embedding_capacity" {
+  description = "Thousands of tokens per minute for the embeddings deployment."
+  type        = number
+  default     = 10
+}

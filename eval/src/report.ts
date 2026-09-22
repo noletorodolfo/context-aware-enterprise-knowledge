@@ -8,6 +8,10 @@ export interface ReportMeta {
   model: string;
   judge: string;
   cases: number;
+  /** Phase 6: which retriever and prompt this run measured. */
+  retriever?: string;
+  prompt?: string;
+  executions?: number;
 }
 
 const pct = (value: number | null) => (value === null ? "n/a" : `${(value * 100).toFixed(1)}%`);

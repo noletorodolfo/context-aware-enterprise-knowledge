@@ -52,10 +52,16 @@ function deps(retriever?: Retriever): AskDependencies {
         roles: [],
       }),
     exchangeToken: () => Promise.resolve("graph-token"),
-    retriever: retriever ?? {
-      retrieve: () => Promise.resolve({ chunks: [chunk], documentCount: 1, documents: [] }),
+    retrievers: {
+      graph: retriever ?? {
+        retrieve: () => Promise.resolve({ chunks: [chunk], documentCount: 1, documents: [] }),
+      },
+      aisearch: {
+        retrieve: () => Promise.resolve({ chunks: [], documentCount: 0, documents: [] }),
+      },
     },
-    provider: withUsage(new MockLlmProvider()),
+    providers: { v1: withUsage(new MockLlmProvider()), v2: withUsage(new MockLlmProvider()) },
+    defaults: { retriever: "graph", prompt: "v1" },
     logger: { info: silent, warn: silent, error: silent },
     maskPii,
     newCorrelationId: () => "corr-1",

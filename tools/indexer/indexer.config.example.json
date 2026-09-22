@@ -1,0 +1,12 @@
+{
+  "siteUrl": "https://contoso.sharepoint.com/sites/kb-demo",
+  "searchEndpoint": "https://srch-kb-dev-xxxxxx.search.windows.net",
+  "indexName": "kb-chunks-dev",
+  "openAiEndpoint": "https://oai-kb-dev-xxxxxx.openai.azure.com/",
+  "embeddingDeployment": "embedding",
+  "libraries": {
+    "Politicas": ["00000000-0000-0000-0000-000000000000"],
+    "TI": ["00000000-0000-0000-0000-000000000000"],
+    "RH-Restrito": ["00000000-0000-0000-0000-000000000001"]
+  }
+}

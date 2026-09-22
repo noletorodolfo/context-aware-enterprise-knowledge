@@ -112,6 +112,12 @@ module "function_app" {
     OBO_CERT_THUMBPRINT     = module.obo_certificate.thumbprint
     AZURE_OPENAI_ENDPOINT   = module.openai.endpoint
     AZURE_OPENAI_DEPLOYMENT = module.openai.deployment_name
+
+    # Phase 6: hybrid retrieval. "graph" stays the default until the evaluation says otherwise.
+    SEARCH_BACKEND                    = var.search_backend
+    SEARCH_ENDPOINT                   = module.search.endpoint
+    SEARCH_INDEX_NAME                 = var.search_index_name
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = module.openai.embedding_deployment_name
   }
 }
 
@@ -126,6 +132,19 @@ resource "azurerm_role_assignment" "function_openai" {
   scope                = module.openai.account_id
   role_definition_name = "Cognitive Services OpenAI User"
   principal_id         = module.function_app.principal_id
+}
+
+module "search" {
+  source = "../../modules/search"
+
+  environment           = "dev"
+  resource_group_name   = azurerm_resource_group.dev.name
+  location              = azurerm_resource_group.dev.location
+  tags                  = local.tags
+  name_suffix           = var.name_suffixes.search
+  function_principal_id = module.function_app.principal_id
+  operator_object_id    = var.operator_object_id
+  ci_plan_principal_id  = var.ci_plan_principal_id
 }
 
 module "observability" {

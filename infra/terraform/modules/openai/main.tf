@@ -61,3 +61,20 @@ resource "azurerm_cognitive_deployment" "chat" {
     capacity = var.capacity
   }
 }
+
+# Embeddings for the Azure AI Search index and for query vectors (Phase 6).
+resource "azurerm_cognitive_deployment" "embedding" {
+  name                 = "embedding"
+  cognitive_account_id = azurerm_cognitive_account.this.id
+
+  model {
+    format  = "OpenAI"
+    name    = var.embedding_model_name
+    version = var.embedding_model_version
+  }
+
+  sku {
+    name     = "GlobalStandard"
+    capacity = var.embedding_capacity
+  }
+}

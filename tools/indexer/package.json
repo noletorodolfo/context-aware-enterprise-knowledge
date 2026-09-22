@@ -1,0 +1,16 @@
+{
+  "name": "@kb/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Builds the Azure AI Search index of permission-tagged document chunks (operator CLI).",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.3",
+    "@kb/llm-providers": "0.1.0",
+    "@kb/retrievers": "0.1.0",
+    "@kb/test-support": "0.1.0"
+  }
+}
