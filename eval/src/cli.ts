@@ -46,8 +46,20 @@ function localDate(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+function flag(name: string, allowed: string[], fallback: string): string {
+  const index = process.argv.indexOf(`--${name}`);
+  if (index === -1) return fallback;
+  const value = process.argv[index + 1] ?? "";
+  if (!allowed.includes(value)) {
+    throw new Error(`--${name} must be one of: ${allowed.join(", ")}`);
+  }
+  return value;
+}
+
 async function main(): Promise<void> {
   const mock = process.argv.includes("--mock");
+  const retriever = flag("retriever", ["graph", "aisearch"], "graph");
+  const prompt = flag("prompt", ["v1", "v2"], "v1");
   const cases = loadGoldenSet(new URL("golden-set.json", evalDir));
 
   let ask: AskClient;
@@ -63,7 +75,7 @@ async function main(): Promise<void> {
       A: await signIn(config, config.userA, tokenCacheFile("a")),
       B: await signIn(config, config.userB, tokenCacheFile("b")),
     };
-    ask = createApiClient(config, tokens);
+    ask = createApiClient(config, tokens, { retriever, prompt });
     judge = createJudge(
       createAzureOpenAiChatClient({
         endpoint: evalConfig.judge.endpoint,
@@ -95,11 +107,12 @@ async function main(): Promise<void> {
     model,
     judge: judge ? JUDGE_PROMPT_VERSION : "none",
     cases: cases.length,
+    ...(mock ? {} : { retriever, prompt }),
   });
 
   const reports = new URL("reports/", evalDir);
   mkdirSync(reports, { recursive: true });
-  const base = `${date}${mock ? "-mock" : ""}`;
+  const base = mock ? `${date}-mock` : `${date}-${retriever}-${prompt}`;
   writeFileSync(new URL(`${base}.md`, reports), markdown);
   writeFileSync(new URL(`${base}.json`, reports), json);
 

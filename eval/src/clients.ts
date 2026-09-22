@@ -9,10 +9,17 @@ export interface AskOutcome {
 
 export type AskClient = (user: EvalUser, question: string) => Promise<AskOutcome>;
 
+export interface VariantOptions {
+  /** Evaluator-only headers that pick the retriever and the prompt version. */
+  retriever?: string;
+  prompt?: string;
+}
+
 /** Calls the deployed API as test user A or B (tokens from the shared interactive sign-in). */
 export function createApiClient(
   config: Pick<E2eConfig, "apiBaseUrl" | "siteUrl">,
   tokens: Record<EvalUser, string>,
+  variant: VariantOptions = {},
   fetchFn: typeof fetch = fetch,
   timeoutMs = 60_000,
 ): AskClient {
@@ -20,7 +27,12 @@ export function createApiClient(
     const started = performance.now();
     const response = await fetchFn(`${config.apiBaseUrl.replace(/\/$/, "")}/api/ask`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${tokens[user]}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${tokens[user]}`,
+        "Content-Type": "application/json",
+        ...(variant.retriever ? { "x-kb-retriever": variant.retriever } : {}),
+        ...(variant.prompt ? { "x-kb-prompt": variant.prompt } : {}),
+      },
       body: JSON.stringify({
         question,
         page: {
