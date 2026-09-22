@@ -329,6 +329,14 @@ Goal: all **Must** items done within 7 days. Should and Could come later, with n
 
 **Done when:** an outsider understands the problem, architecture and result from the README alone in under 5 minutes.
 
+**Result (2026-09-22):** documentation complete. Deviation: the video and GIF are recorded by the
+owner and published only after a frame-by-frame anonymity review, because every live frame shows the
+partner tenant. The README, architecture, security model, operational
+runbook, certification evidence and ADRs are public and linked to implementation evidence. The
+two-minute recording remains an operator-managed publication step: it must be captured from synthetic
+examples and pass the frame-by-frame anonymity checklist in `docs/setup/phase-5.md` before any link or
+GIF is added to the repository.
+
 _Buffer: ~0.5 day._
 
 ### Phase 6 — Custom semantic search · Should
