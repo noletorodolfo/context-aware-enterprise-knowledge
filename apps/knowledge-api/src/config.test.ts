@@ -25,6 +25,10 @@ describe("loadConfig", () => {
       oboCertThumbprint: "ABCDEF",
       openAiEndpoint: "https://oai.openai.azure.com/",
       openAiDeployment: "chat",
+      openAiEmbeddingDeployment: "embedding",
+      searchEndpoint: "",
+      searchIndexName: "kb-chunks-dev",
+      searchBackend: "graph",
     });
   });
 

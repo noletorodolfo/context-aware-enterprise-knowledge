@@ -2,9 +2,14 @@ import { randomUUID } from "node:crypto";
 import { app, type HttpRequest, type InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { maskPii } from "@kb/governance";
-import { AzureOpenAiProvider, createAzureOpenAiChatClient } from "@kb/llm-providers";
-import { GraphSearchRetriever } from "@kb/retrievers";
+import {
+  AzureOpenAiProvider,
+  createAzureOpenAiChatClient,
+  createEmbedder,
+} from "@kb/llm-providers";
+import { AiSearchRetriever, GraphSearchRetriever, createGroupMembership } from "@kb/retrievers";
 import systemPromptV1 from "../../../../prompts/v1.md";
+import systemPromptV2 from "../../../../prompts/v2.md";
 import { createClientAssertion, keyVaultSigner } from "../auth/client-assertion.js";
 import { GRAPH_DELEGATED_SCOPES, createOboExchanger } from "../auth/obo.js";
 import { createTokenValidator, entraJwks } from "../auth/token-validator.js";
@@ -35,17 +40,32 @@ const exchangeToken = createOboExchanger({
     }),
 });
 
-const retriever = new GraphSearchRetriever({ siteUrls: config.searchSiteUrls });
-
-const provider = new AzureOpenAiProvider({
-  chat: createAzureOpenAiChatClient({
-    endpoint: config.openAiEndpoint,
-    deployment: config.openAiDeployment,
-    credential,
+const retrievers = {
+  graph: new GraphSearchRetriever({ siteUrls: config.searchSiteUrls }),
+  aisearch: new AiSearchRetriever({
+    endpoint: config.searchEndpoint,
+    indexName: config.searchIndexName,
+    getToken: async () =>
+      (await credential.getToken("https://search.azure.com/.default"))?.token ?? "",
+    embed: createEmbedder({
+      endpoint: config.openAiEndpoint,
+      deployment: config.openAiEmbeddingDeployment,
+      credential,
+    }),
+    groupsFor: createGroupMembership(),
   }),
-  systemPrompt: systemPromptV1,
-  promptVersion: "v1",
+};
+
+const chat = createAzureOpenAiChatClient({
+  endpoint: config.openAiEndpoint,
+  deployment: config.openAiDeployment,
+  credential,
 });
+
+const providers = {
+  v1: new AzureOpenAiProvider({ chat, systemPrompt: systemPromptV1, promptVersion: "v1" }),
+  v2: new AzureOpenAiProvider({ chat, systemPrompt: systemPromptV2, promptVersion: "v2" }),
+};
 
 function contextLogger(context: InvocationContext): AskLogger {
   const line = (event: string, data: Record<string, unknown>) => JSON.stringify({ event, ...data });
@@ -73,12 +93,14 @@ app.http("ask", {
       {
         authorization: request.headers.get("authorization") ?? undefined,
         body: await readJson(request),
+        headers: Object.fromEntries(request.headers.entries()),
       },
       {
         validateToken,
         exchangeToken,
-        retriever,
-        provider,
+        retrievers,
+        providers,
+        defaults: { retriever: config.searchBackend, prompt: "v1" },
         logger: contextLogger(context),
         maskPii,
         newCorrelationId: randomUUID,

@@ -21,10 +21,18 @@ import type { TokenExchanger } from "../auth/obo.js";
 import type { TokenValidator } from "../auth/token-validator.js";
 import { recordAskMetrics } from "./metrics.js";
 import { askRequestSchema } from "./request-schema.js";
+import {
+  selectVariant,
+  type PromptVersion,
+  type RetrieverName,
+  type SelectionDefaults,
+} from "./selection.js";
 
 export interface AskHttpRequest {
   authorization: string | undefined;
   body: unknown;
+  /** Used only for the evaluator-only variant headers; see selection.ts. */
+  headers?: Record<string, string | undefined>;
 }
 
 export interface AskHttpResponse {
@@ -42,8 +50,10 @@ export interface AskLogger {
 export interface AskDependencies {
   validateToken: TokenValidator;
   exchangeToken: TokenExchanger;
-  retriever: Retriever;
-  provider: LlmProvider;
+  retrievers: Record<RetrieverName, Retriever>;
+  providers: Record<PromptVersion, LlmProvider>;
+  /** Configured defaults; evaluator callers may override them per request. */
+  defaults: SelectionDefaults;
   logger: AskLogger;
   maskPii: (text: string) => PiiMaskResult;
   newCorrelationId: () => string;
@@ -107,6 +117,16 @@ async function ask(
     return respond(400, { error: "invalid-request", field, correlationId });
   }
 
+  const isEvaluator = auth.roles.includes(EVALUATOR_ROLE);
+  const selection = selectVariant(request.headers ?? {}, isEvaluator, deps.defaults);
+  if (!selection.ok) {
+    deps.logger.warn("ask.invalid-request", { correlationId, field: selection.field });
+    return respond(400, { error: "invalid-request", field: selection.field, correlationId });
+  }
+  const retriever = deps.retrievers[selection.retriever];
+  const provider = deps.providers[selection.prompt];
+  span.setAttribute("kb.retriever", selection.retriever);
+
   const { question: rawText, page: rawPage } = parsed.data;
   const page: PageContext = {
     url: rawPage.url,
@@ -131,7 +151,7 @@ async function ask(
 
     const graphToken = await deps.exchangeToken(auth.token, auth.user.objectId);
     const oboDone = deps.now();
-    const { chunks, documentCount, documents } = await deps.retriever.retrieve({
+    const { chunks, documentCount, documents } = await retriever.retrieve({
       question: text,
       graphToken,
     });
@@ -143,11 +163,11 @@ async function ask(
     let upstreamDetail: UpstreamErrorDetail | undefined;
 
     if (chunks.length === 0) {
-      answer = refusal(deps.provider.promptVersion);
+      answer = refusal(provider.promptVersion);
       refusalReason = "no-relevant-documents";
     } else {
       try {
-        const result = await deps.provider.generate({
+        const result = await provider.generate({
           question,
           user: { name: auth.user.name },
           chunks,
@@ -163,7 +183,7 @@ async function ask(
         if (answer.refused) refusalReason = "ungrounded";
       } catch (error) {
         if (isUpstreamError(error) && error.kind === "llm-content-filtered") {
-          answer = refusal(deps.provider.promptVersion);
+          answer = refusal(provider.promptVersion);
           refusalReason = "content-filter";
           upstreamDetail = error.detail;
         } else {
@@ -192,6 +212,7 @@ async function ask(
       correlationId,
       status: 200,
       questionLength: rawText.length,
+      retriever: selection.retriever,
       durationMs: finishedAt - startedAt,
       promptVersion: answer.promptVersion,
       documentCount,
@@ -210,9 +231,10 @@ async function ask(
     });
 
     const body: AskResponse = { ...answer, piiMasked: piiCount > 0 };
-    if (auth.roles.includes(EVALUATOR_ROLE)) {
+    if (isEvaluator) {
       const diagnostics: Diagnostics = {
         promptVersion: answer.promptVersion,
+        retriever: selection.retriever,
         ...(refusalReason ? { refusalReason } : {}),
         pii: pii.findings,
         retrieval: {

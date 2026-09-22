@@ -62,6 +62,8 @@ export interface RetrievedDocument {
 /** Pipeline internals returned only to callers with the Evaluator app role. */
 export interface Diagnostics {
   promptVersion: string;
+  /** Retriever that produced the excerpts ("graph" or "aisearch"). */
+  retriever: string;
   refusalReason?: RefusalReason;
   pii: { type: string; count: number }[];
   retrieval: {

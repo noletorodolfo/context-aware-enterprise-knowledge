@@ -37,6 +37,8 @@ function setup(
     exchangeToken?: AskDependencies["exchangeToken"];
     retriever?: Retriever;
     provider?: LlmProvider;
+    aiRetriever?: Retriever;
+    v2Provider?: LlmProvider;
   } = {},
 ) {
   const logs: LogEntry[] = [];
@@ -63,14 +65,27 @@ function setup(
         },
       ),
     exchangeToken,
-    retriever,
-    provider,
+    retrievers: { graph: retriever, aisearch: overrides.aiRetriever ?? retriever },
+    providers: { v1: provider, v2: overrides.v2Provider ?? provider },
+    defaults: { retriever: "graph", prompt: "v1" },
     logger,
     maskPii,
     newCorrelationId: () => "corr-1",
     now: () => (clock += 25),
   };
   return { deps, logs, generate, exchangeToken, retriever };
+}
+
+/** Mock answers that report a different prompt version, so selection is observable. */
+function promptVersioned(version: string): LlmProvider {
+  const mock = new MockLlmProvider();
+  return {
+    promptVersion: version,
+    generate: async (input) => {
+      const result = await mock.generate(input);
+      return { ...result, draft: { ...result.draft, promptVersion: version } };
+    },
+  };
 }
 
 describe("handleAsk", () => {
@@ -101,6 +116,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
+        retriever: "graph",
         durationMs: 100,
         promptVersion: "mock",
         documentCount: 1,
@@ -129,6 +145,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
+        retriever: "graph",
         durationMs: 100,
         promptVersion: "mock",
         documentCount: 0,
@@ -164,6 +181,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
+        retriever: "graph",
         durationMs: 100,
         promptVersion: "v1",
         documentCount: 1,
@@ -271,6 +289,7 @@ describe("handleAsk", () => {
         correlationId: "corr-1",
         status: 200,
         questionLength: QUESTION.length,
+        retriever: "graph",
         durationMs: 100,
         promptVersion: "mock",
         documentCount: 1,
@@ -339,10 +358,72 @@ describe("handleAsk", () => {
 
     expect((res.jsonBody as AskResponse).diagnostics).toEqual({
       promptVersion: "mock",
+      retriever: "graph",
       pii: [{ type: "email", count: 1 }],
       retrieval: { documents, chunks: [{ id: "item-1#1", docId: "item-1", score: 2 }] },
       timingsMs: { obo: 25, retrieval: 25, generation: 25, total: 100 },
     });
+  });
+
+  it("lets an evaluator pick the retriever and the prompt per request", async () => {
+    const aiChunk = { ...chunk, id: "ai#1", text: "Trecho vindo do índice." };
+    const { deps } = setup({
+      auth: { ok: true, user: { objectId: "oid-a", name: "A" }, token: "t", roles: ["Evaluator"] },
+      aiRetriever: {
+        retrieve: () => Promise.resolve({ chunks: [aiChunk], documentCount: 1, documents: [] }),
+      },
+      v2Provider: promptVersioned("v2"),
+    });
+
+    const res = await handleAsk(
+      {
+        authorization: "Bearer x",
+        body: validBody,
+        headers: { "x-kb-retriever": "aisearch", "x-kb-prompt": "v2" },
+      },
+      deps,
+    );
+
+    const diagnostics = (res.jsonBody as AskResponse).diagnostics as {
+      retriever: string;
+      promptVersion: string;
+      retrieval: { chunks: { id: string }[] };
+    };
+    expect(diagnostics.retriever).toBe("aisearch");
+    expect(diagnostics.promptVersion).toBe("v2");
+    expect(diagnostics.retrieval.chunks[0]?.id).toBe("ai#1");
+  });
+
+  it("ignores the variant headers for a caller without the Evaluator role", async () => {
+    const { deps, logs } = setup({
+      aiRetriever: {
+        retrieve: () => Promise.reject(new Error("the index must not be queried here")),
+      },
+    });
+
+    const res = await handleAsk(
+      { authorization: "Bearer x", body: validBody, headers: { "x-kb-retriever": "aisearch" } },
+      deps,
+    );
+
+    expect(res.status).toBe(200);
+    expect(logs.find((entry) => entry.event === "ask.completed")?.data).toMatchObject({
+      retriever: "graph",
+    });
+  });
+
+  it("rejects an unknown variant value from an evaluator", async () => {
+    const { deps } = setup({
+      auth: { ok: true, user: { objectId: "oid-a", name: "A" }, token: "t", roles: ["Evaluator"] },
+    });
+
+    const res = await handleAsk(
+      { authorization: "Bearer x", body: validBody, headers: { "x-kb-prompt": "v9" } },
+      deps,
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.jsonBody).toMatchObject({ error: "invalid-request", field: "x-kb-prompt" });
   });
 
   it("reports the refusal reason in diagnostics", async () => {
