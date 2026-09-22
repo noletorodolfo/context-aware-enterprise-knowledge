@@ -8,6 +8,7 @@ name_suffixes = {
   function_app = "abc123"
   openai       = "def456"
   key_vault    = "ghi789"
+  search       = "jkl012"
 }
 state_resource_group_name  = "rg-kb-tfstate"
 state_storage_account_name = "stkbtfstatexxxxxx"

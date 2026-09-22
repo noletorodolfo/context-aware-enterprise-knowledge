@@ -29,3 +29,11 @@ output "application_insights_id" {
 output "log_analytics_workspace_id" {
   value = module.function_app.log_analytics_workspace_id
 }
+
+output "search_endpoint" {
+  value = module.search.endpoint
+}
+
+output "search_index_name" {
+  value = var.search_index_name
+}

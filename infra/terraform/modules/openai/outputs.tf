@@ -9,3 +9,7 @@ output "endpoint" {
 output "deployment_name" {
   value = azurerm_cognitive_deployment.chat.name
 }
+
+output "embedding_deployment_name" {
+  value = azurerm_cognitive_deployment.embedding.name
+}

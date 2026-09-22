@@ -65,7 +65,24 @@ variable "name_suffixes" {
     function_app = string
     openai       = string
     key_vault    = string
+    search       = string
   })
+}
+
+variable "search_backend" {
+  description = "Default retriever of the deployed API: graph or aisearch."
+  type        = string
+  default     = "graph"
+
+  validation {
+    condition     = contains(["graph", "aisearch"], var.search_backend)
+    error_message = "search_backend must be graph or aisearch."
+  }
+}
+
+variable "search_index_name" {
+  type    = string
+  default = "kb-chunks-dev"
 }
 
 variable "operator_object_id" {
