@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@kb/core": "0.1.0",
+    "@kb/llm-providers": "0.1.0",
     "mammoth": "^1.12.3"
   },
   "devDependencies": {

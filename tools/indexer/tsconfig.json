@@ -6,5 +6,9 @@
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"],
-  "references": [{ "path": "../../packages/retrievers" }, { "path": "../../test-support" }]
+  "references": [
+    { "path": "../../packages/llm-providers" },
+    { "path": "../../packages/retrievers" },
+    { "path": "../../test-support" }
+  ]
 }

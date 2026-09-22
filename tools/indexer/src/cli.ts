@@ -7,7 +7,7 @@ import { signIn } from "@kb/test-support/auth";
 import { loadE2eConfig, tokenCacheFile } from "@kb/test-support/e2e-config";
 import { aclGroupsFor, validateIndexerConfig, type IndexerConfig } from "./acl.js";
 import { buildChunks, type IndexedDocument } from "./chunks.js";
-import { createEmbedder } from "./embeddings.js";
+import { createEmbedder } from "@kb/llm-providers";
 import { readLibraries } from "./graph.js";
 import { batch, reconcile } from "./reconcile.js";
 import { createSearchIndexClient } from "./search-client.js";
