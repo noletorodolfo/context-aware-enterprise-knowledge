@@ -158,6 +158,19 @@ resource "azuread_application" "e2e_client" {
       type = "Scope"
     }
   }
+
+  # The indexing CLI reads the demo libraries as the signed-in operator (Phase 6).
+  required_resource_access {
+    resource_app_id = data.azuread_service_principal.graph.client_id
+
+    dynamic "resource_access" {
+      for_each = local.graph_delegated_scopes
+      content {
+        id   = data.azuread_service_principal.graph.oauth2_permission_scope_ids[resource_access.value]
+        type = "Scope"
+      }
+    }
+  }
 }
 
 resource "azuread_service_principal" "e2e_client" {
@@ -169,4 +182,12 @@ resource "azuread_service_principal_delegated_permission_grant" "e2e_client" {
   service_principal_object_id          = azuread_service_principal.e2e_client.object_id
   resource_service_principal_object_id = azuread_service_principal.knowledge_api.object_id
   claim_values                         = ["user_impersonation"]
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "e2e_client_graph" {
+  count = var.grant_admin_consent ? 1 : 0
+
+  service_principal_object_id          = azuread_service_principal.e2e_client.object_id
+  resource_service_principal_object_id = data.azuread_service_principal.graph.object_id
+  claim_values                         = local.graph_delegated_scopes
 }

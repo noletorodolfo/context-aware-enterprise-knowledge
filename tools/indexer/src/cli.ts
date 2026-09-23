@@ -34,11 +34,10 @@ async function main(): Promise<void> {
 
   console.log("Signing in as test user A (cached tokens are reused)...");
   const e2e = loadE2eConfig();
-  const graphToken = await signIn(
-    { ...e2e, apiScope: "https://graph.microsoft.com/.default" },
-    e2e.userA,
-    tokenCacheFile("indexer"),
-  );
+  const graphToken = await signIn(e2e, e2e.userA, tokenCacheFile("indexer"), [
+    "https://graph.microsoft.com/Sites.Read.All",
+    "https://graph.microsoft.com/Files.Read.All",
+  ]);
 
   const { files, skipped } = await readLibraries(
     config.siteUrl,
