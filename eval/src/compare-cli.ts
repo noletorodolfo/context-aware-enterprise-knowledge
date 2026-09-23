@@ -14,8 +14,11 @@ const read = (path: string): ReportJson => JSON.parse(readFileSync(path, "utf8")
 const a = read(pathA);
 const b = read(pathB);
 
+// The variants are part of the name so several comparisons of the same day can be committed.
+const variant = (report: ReportJson): string =>
+  `${report.meta.retriever ?? "graph"}-${report.meta.prompt ?? "v1"}`;
 const output = new URL(
-  `reports/comparison-${b.meta.date}.md`,
+  `reports/comparison-${b.meta.date}-${variant(a)}-vs-${variant(b)}.md`,
   new URL("../../eval/", import.meta.url),
 );
 writeFileSync(output, `${renderComparison(a, b)}\n`);

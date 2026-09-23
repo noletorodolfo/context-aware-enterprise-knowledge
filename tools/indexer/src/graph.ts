@@ -27,6 +27,20 @@ async function graph<T>(path: string, token: string, fetchFn: typeof fetch): Pro
   return (await response.json()) as T;
 }
 
+/**
+ * The drive listing returns `webUrl` as `.../_layouts/15/Doc.aspx?sourcedoc=...`, while Graph
+ * Search returns the path form `.../<library>/<file>.docx`. Both retrievers must cite the same
+ * URL, and only the path form names the library, so the path form is rebuilt from the drive.
+ */
+export function documentUrl(
+  driveWebUrl: string | undefined,
+  name: string,
+  fallback: string,
+): string {
+  if (!driveWebUrl) return fallback;
+  return `${driveWebUrl.replace(/[/]+$/, "")}/${encodeURIComponent(name)}`;
+}
+
 /** `https://host/sites/name` becomes the Graph site address `host:/sites/name`. */
 export function siteAddress(siteUrl: string): string {
   const url = new URL(siteUrl);
@@ -44,7 +58,7 @@ export async function readLibraries(
   fetchFn: typeof fetch = fetch,
 ): Promise<{ files: LibraryFile[]; skipped: number }> {
   const site = await graph<{ id: string }>(`/sites/${siteAddress(siteUrl)}`, token, fetchFn);
-  const drives = await graph<{ value: { id: string; name: string }[] }>(
+  const drives = await graph<{ value: { id: string; name: string; webUrl?: string }[] }>(
     `/sites/${site.id}/drives`,
     token,
     fetchFn,
@@ -81,7 +95,7 @@ export async function readLibraries(
       files.push({
         docId: item.id,
         title: name.replace(/\.docx$/i, ""),
-        url: item.webUrl,
+        url: documentUrl(drive.webUrl, name, item.webUrl),
         library,
         sections,
       });

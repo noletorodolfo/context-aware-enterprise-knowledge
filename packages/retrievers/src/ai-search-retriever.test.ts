@@ -18,7 +18,11 @@ const hit = (id: string, docId: string, score: number, section = "Auxílio") => 
 
 function setup(
   hits: ReturnType<typeof hit>[] = [hit("c1", "doc-1", 0.9)],
-  overrides: { groups?: string[]; fetchFn?: typeof fetch } = {},
+  overrides: {
+    groups?: string[];
+    fetchFn?: typeof fetch;
+    limits?: { maxSections: number; maxChars: number };
+  } = {},
 ) {
   const requests: { url: string; body: Record<string, unknown> }[] = [];
   const fetchFn =
@@ -40,6 +44,7 @@ function setup(
     embed: (inputs) => Promise.resolve(inputs.map(() => [0.1, 0.2, 0.3])),
     groupsFor: () => Promise.resolve(overrides.groups ?? ["group-colaboradores", "group-rh"]),
     fetchFn,
+    ...(overrides.limits ? { limits: overrides.limits } : {}),
   });
   return { retriever, requests };
 }
@@ -84,6 +89,18 @@ describe("AiSearchRetriever", () => {
     ]);
     expect(result.documentCount).toBe(2);
     expect(result.chunks).toHaveLength(3);
+  });
+
+  it("stops adding chunks once the context budget is spent", async () => {
+    const { retriever } = setup([hit("c1", "doc-1", 0.9), hit("c2", "doc-2", 0.8)], {
+      limits: { maxSections: 8, maxChars: 80 },
+    });
+
+    const result = await retriever.retrieve({ question: "q", graphToken: "graph-token" });
+
+    // Both hits are ~60 characters: the first fits, the second would exceed the budget.
+    expect(result.chunks.map((chunk) => chunk.id)).toEqual(["c1"]);
+    expect(result.documents).toHaveLength(1);
   });
 
   it("returns nothing, without querying, when the caller belongs to no group", async () => {

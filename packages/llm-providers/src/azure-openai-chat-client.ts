@@ -9,7 +9,26 @@ interface ApiErrorShape {
   code?: unknown;
   type?: unknown;
   param?: unknown;
-  error?: { innererror?: { code?: unknown } };
+  error?: {
+    innererror?: {
+      code?: unknown;
+      content_filter_result?: Record<string, { filtered?: unknown }>;
+    };
+  };
+}
+
+/**
+ * Category names only (`hate`, `self_harm`, `violence`, `jailbreak`, ...) of the filters that
+ * fired. The categories say which policy blocked the answer without revealing what was asked or
+ * retrieved, which is the difference between a diagnosable refusal and an opaque one.
+ */
+function filteredCategories(result: Record<string, { filtered?: unknown }> | undefined): string {
+  if (!result) return "";
+  return Object.entries(result)
+    .filter(([, value]) => value?.filtered === true)
+    .map(([category]) => category)
+    .sort()
+    .join(",");
 }
 
 /**
@@ -52,6 +71,8 @@ export function describeOpenAiError(error: unknown): UpstreamErrorDetail {
   if (shape?.code === "content_filter" || innerCode === "ResponsibleAIPolicyViolation") {
     detail.contentFilter = true;
     if (typeof innerCode === "string") detail.innerCode = innerCode;
+    const categories = filteredCategories(shape?.error?.innererror?.content_filter_result);
+    if (categories !== "") detail.filteredCategories = categories;
   }
 
   return detail;
