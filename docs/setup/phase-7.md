@@ -132,9 +132,15 @@ and it runs **on every host start** as well as every six hours. Deploying the ap
 brings the subscriptions up, and a restart is enough to reconcile them again. Check the
 `ingestion.subscriptions-reconciled` log line for `created` and `failures`.
 
-There is no manual trigger to fall back on: the host keys API that `/admin/functions/<name>` needs
-returns `InternalServerError from host runtime` on Flex Consumption, so running a timer function on
-demand is not available. Running it at startup is what replaces that.
+Two Flex Consumption details shaped this. HTTP and non-HTTP triggers run on **separate instances**:
+the log of an HTTP instance shows `renew` with a `NoOpListener`, so `runOnStartup` there fires
+nothing, and the timer runs when the platform starts the non-HTTP instance. And the host keys API
+that `/admin/functions/<name>` needs fails while the host cannot reach its own storage, which is a
+configuration mistake worth naming: an identity-based `AzureWebJobsStorage` needs one endpoint per
+service (`__blobServiceUri`, `__queueServiceUri`, `__tableServiceUri`), not only `__accountName`.
+With the account name alone the host reports `AzureWebJobsStorage: AuthenticationFailed`, never
+creates its `azure-webjobs-*` containers, and every non-HTTP trigger stays dead — silently, because
+the HTTP path keeps answering.
 
 ## Operating it
 
