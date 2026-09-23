@@ -52,33 +52,40 @@ locals {
 
 # The API app registration trusts the Key Vault certificate for client assertions. After the Azure root
 # is recreated (new certificate), applying this root registers the new one.
+# Skipped, not failed, while the Azure root has not produced a certificate yet. A failing apply does
+# not persist this root's outputs, and the Azure root reads them: erroring here would leave the first
+# bring-up of a new application unable to continue. Applying this root again registers the certificate.
+#
+# After the Azure root is destroyed (recovery drill) this plans to remove the registration, which is
+# what should happen: the certificate it points at no longer exists. The third step of the bring-up
+# registers the new one.
 resource "azuread_application_certificate" "knowledge_api_obo" {
+  count = local.obo_certificate == null ? 0 : 1
+
   application_id = module.identity.knowledge_api_application_id
   type           = "AsymmetricX509Cert"
   encoding       = "base64"
   value          = local.obo_certificate.data_base64
   end_date       = local.obo_certificate.end_date
-
-  lifecycle {
-    precondition {
-      condition     = local.obo_certificate != null
-      error_message = "Apply envs/dev first: its obo_certificate output is missing."
-    }
-  }
 }
 
 # The ingestion application trusts its own Key Vault certificate for the app-only client assertion.
 resource "azuread_application_certificate" "ingestion" {
+  count = local.ingestion_certificate == null ? 0 : 1
+
   application_id = module.identity.ingestion_application_id
   type           = "AsymmetricX509Cert"
   encoding       = "base64"
   value          = local.ingestion_certificate.data_base64
   end_date       = local.ingestion_certificate.end_date
+}
 
-  lifecycle {
-    precondition {
-      condition     = local.ingestion_certificate != null
-      error_message = "Apply envs/dev first: its ingestion_certificate output is missing."
-    }
-  }
+# Applying this root with no certificate available is legitimate (first bring-up) but must not look
+# like a finished job: the output says which registrations are still missing.
+output "pending_certificate_registrations" {
+  description = "Applications whose certificate is not registered yet; apply envs/dev, then this root again."
+  value = compact([
+    local.obo_certificate == null ? "knowledge-api (obo)" : "",
+    local.ingestion_certificate == null ? "ingestion" : "",
+  ])
 }

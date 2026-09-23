@@ -77,6 +77,7 @@ resource "random_password" "client_state" {
   special = false
 }
 
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated with the environment; the renewal run recreates the subscriptions that carry it
 resource "azurerm_key_vault_secret" "client_state" {
   #checkov:skip=CKV_AZURE_41:rotated by recreating the subscription, which the renewal function does on demand
   name         = "ingestion-client-state-${var.environment}"

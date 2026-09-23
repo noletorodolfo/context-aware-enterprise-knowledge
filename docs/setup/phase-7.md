@@ -87,11 +87,13 @@ The certificate lives in the subscription tenant and the application registratio
 tenant, so the same three-step dance as Phase 4 applies:
 
 1. `terraform -chdir=infra/terraform/envs/dev-identity apply` — creates the ingestion application and
-   consents to `Sites.Selected`. It stops at the certificate registration with "Apply envs/dev first"
-   until the Azure root exists; everything else is created.
+   consents to `Sites.Selected`. The certificate does not exist yet, so its registration is **skipped**
+   and listed in the `pending_certificate_registrations` output. The apply succeeds, which matters:
+   a failed apply does not persist this root's outputs, and the next step reads them.
 2. `terraform -chdir=infra/terraform/envs/dev apply` (through `infra.yml`) — creates the certificate,
    the Function App, the queues and the role assignments.
-3. `terraform -chdir=infra/terraform/envs/dev-identity apply` again — registers the certificate.
+3. `terraform -chdir=infra/terraform/envs/dev-identity apply` again — registers the certificate, and
+   `pending_certificate_registrations` comes back empty.
 
 Then, once per site, grant the identity access to it. This is a Graph data-plane call, not something
 Terraform models:

@@ -30,8 +30,9 @@ both with `terraform_remote_state`.
 
 Building an empty environment takes three steps:
 
-1. `envs/dev-identity` apply, which fails at the certificate registration with "Apply envs/dev first"
-   until the Azure root exists. Everything else is created.
+1. `envs/dev-identity` apply, which skips the certificate registrations until the Azure root exists
+   and lists them in `pending_certificate_registrations`. Everything else is created, and the apply
+   succeeds: a failed apply would not persist this root's outputs, which step 2 reads.
 2. `envs/dev` apply, through `infra.yml` or locally.
 3. `envs/dev-identity` apply again, which registers the certificate.
 

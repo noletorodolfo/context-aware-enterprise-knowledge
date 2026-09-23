@@ -1,3 +1,14 @@
+import { createHash } from "node:crypto";
+
+/**
+ * Identifies which secret a subscription was created with, without storing the secret. Rotating the
+ * webhook secret leaves every live subscription echoing the old one, and the webhook would reject
+ * every notification: a mismatch has to force a recreation, not a renewal.
+ */
+export function clientStateFingerprint(clientState: string): string {
+  return createHash("sha256").update(clientState).digest("base64url").slice(0, 16);
+}
+
 /** A subscription this deployment keeps alive, as stored in the ingestion state. */
 export interface SubscriptionRecord {
   driveId: string;
@@ -6,6 +17,8 @@ export interface SubscriptionRecord {
   subscriptionId: string;
   /** ISO 8601, as Graph returned it. */
   expiresAt: string;
+  /** Fingerprint of the clientState this subscription carries; absent in records written before it. */
+  clientStateFingerprint?: string;
 }
 
 export interface RenewalPlan {
@@ -13,6 +26,11 @@ export interface RenewalPlan {
   create: { driveId: string; library: string; siteId: string }[];
   /** Subscriptions close enough to expiry that they must be extended now. */
   renew: SubscriptionRecord[];
+  /**
+   * Subscriptions carrying a clientState that is no longer the current one. Graph cannot change the
+   * clientState of a live subscription, so these are deleted and created again.
+   */
+  recreate: SubscriptionRecord[];
   /** Records for drives that are no longer configured: the subscription must be deleted. */
   remove: SubscriptionRecord[];
 }
@@ -35,17 +53,23 @@ export function planRenewals(
   records: SubscriptionRecord[],
   now: Date,
   renewWithinMs: number,
+  currentFingerprint: string,
 ): RenewalPlan {
   const byDrive = new Map(records.map((record) => [record.driveId, record]));
   const configured = new Set(drives.map((drive) => drive.driveId));
 
   const create: RenewalPlan["create"] = [];
   const renew: SubscriptionRecord[] = [];
+  const recreate: SubscriptionRecord[] = [];
 
   for (const drive of drives) {
     const record = byDrive.get(drive.driveId);
     if (!record) {
       create.push(drive);
+      continue;
+    }
+    if (record.clientStateFingerprint !== currentFingerprint) {
+      recreate.push(record);
       continue;
     }
     const expiry = Date.parse(record.expiresAt);
@@ -57,6 +81,7 @@ export function planRenewals(
   return {
     create,
     renew,
+    recreate,
     remove: records.filter((record) => !configured.has(record.driveId)),
   };
 }

@@ -1,4 +1,4 @@
-import type { Drive, SubscriptionRecord } from "./handlers/renewal.js";
+import { clientStateFingerprint, type Drive, type SubscriptionRecord } from "./handlers/renewal.js";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
@@ -51,9 +51,12 @@ export function createSubscriptionClient(options: SubscriptionClientOptions): Su
   ): SubscriptionRecord => {
     if (!subscription.id) throw new Error("Graph returned a subscription without an id");
     return {
-      ...drive,
+      driveId: drive.driveId,
+      library: drive.library,
+      siteId: drive.siteId,
       subscriptionId: subscription.id,
       expiresAt: subscription.expirationDateTime ?? expiration(),
+      clientStateFingerprint: clientStateFingerprint(options.clientState),
     };
   };
 

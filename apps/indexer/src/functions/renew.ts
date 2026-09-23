@@ -1,6 +1,10 @@
 import { app, type InvocationContext, type Timer } from "@azure/functions";
-import { RENEW_WITHIN_MS, config, state, subscriptions } from "../dependencies.js";
-import { planRenewals, type SubscriptionRecord } from "../handlers/renewal.js";
+import { RENEW_WITHIN_MS, clientState, config, state, subscriptions } from "../dependencies.js";
+import {
+  clientStateFingerprint,
+  planRenewals,
+  type SubscriptionRecord,
+} from "../handlers/renewal.js";
 
 /**
  * Keeps the change notifications alive, and is also what bootstraps them: on an empty state it
@@ -11,13 +15,18 @@ import { planRenewals, type SubscriptionRecord } from "../handlers/renewal.js";
 export async function renew(_timer: Timer, context: InvocationContext): Promise<void> {
   const drives = await subscriptions.drives(Object.keys(config.libraryAcl));
   const existing = await state.readSubscriptions();
-  const plan = planRenewals(drives, existing, new Date(), RENEW_WITHIN_MS);
-
-  const kept = existing.filter(
-    (record) =>
-      !plan.renew.some((renewing) => renewing.subscriptionId === record.subscriptionId) &&
-      !plan.remove.some((removing) => removing.subscriptionId === record.subscriptionId),
+  const plan = planRenewals(
+    drives,
+    existing,
+    new Date(),
+    RENEW_WITHIN_MS,
+    clientStateFingerprint(clientState()),
   );
+
+  const touched = new Set(
+    [...plan.renew, ...plan.recreate, ...plan.remove].map((record) => record.subscriptionId),
+  );
+  const kept = existing.filter((record) => !touched.has(record.subscriptionId));
   const records: SubscriptionRecord[] = [...kept];
   let failures = 0;
 
@@ -58,6 +67,25 @@ export async function renew(_timer: Timer, context: InvocationContext): Promise<
     }
   }
 
+  // A rotated webhook secret cannot be applied to a live subscription: Graph only accepts a new
+  // expiry on PATCH. Without this, every notification would be rejected until the subscription lapsed.
+  for (const record of plan.recreate) {
+    await subscriptions.remove(record.subscriptionId).catch(() => undefined);
+    try {
+      records.push(await subscriptions.create(record));
+    } catch (error) {
+      failures += 1;
+      context.error(
+        JSON.stringify({
+          event: "ingestion.subscription-failed",
+          action: "recreate",
+          library: record.library,
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        }),
+      );
+    }
+  }
+
   for (const record of plan.remove) {
     await subscriptions.remove(record.subscriptionId).catch(() => undefined);
   }
@@ -69,6 +97,7 @@ export async function renew(_timer: Timer, context: InvocationContext): Promise<
       event: "ingestion.subscriptions-reconciled",
       created: plan.create.length,
       renewed: plan.renew.length,
+      recreated: plan.recreate.length,
       removed: plan.remove.length,
       live: records.length,
       failures,
