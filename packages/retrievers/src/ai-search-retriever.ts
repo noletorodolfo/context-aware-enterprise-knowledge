@@ -59,8 +59,14 @@ export class AiSearchRetriever implements Retriever {
 
       const chunks: Chunk[] = [];
       const best = new Map<string, number>();
+      let chars = 0;
       for (const hit of hits) {
         if (!hit.id || !hit.docId || !hit.content) continue;
+        // Same context budget the Graph path applies in selectChunks: the prompt must not grow
+        // with the index, and a lower-ranked chunk never displaces a higher-ranked one.
+        const length = (hit.section ?? "").length + hit.content.length;
+        if (chars + length > limits.maxChars) continue;
+        chars += length;
         const score = hit["@search.score"] ?? 0;
         best.set(hit.docId, Math.max(best.get(hit.docId) ?? 0, score));
         chunks.push({

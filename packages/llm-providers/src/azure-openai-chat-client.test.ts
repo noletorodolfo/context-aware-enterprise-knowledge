@@ -28,6 +28,28 @@ describe("describeOpenAiError", () => {
     expect(JSON.stringify(detail)).not.toContain("secret prompt text");
   });
 
+  it("names the filter categories that fired, and nothing about the content", () => {
+    const apiError = {
+      name: "BadRequestError",
+      status: 400,
+      code: "content_filter",
+      error: {
+        innererror: {
+          code: "ResponsibleAIPolicyViolation",
+          content_filter_result: {
+            hate: { filtered: false, severity: "safe" },
+            self_harm: { filtered: true, severity: "medium" },
+            jailbreak: { filtered: true, detected: true },
+          },
+        },
+      },
+      message: "secret prompt text",
+    };
+    const detail = describeOpenAiError(apiError);
+    expect(detail.filteredCategories).toBe("jailbreak,self_harm");
+    expect(JSON.stringify(detail)).not.toContain("secret prompt text");
+  });
+
   it("describes a 429 rate limit error", () => {
     const apiError = { name: "RateLimitError", status: 429, code: "rate_limit_exceeded" };
     expect(describeOpenAiError(apiError)).toEqual({
