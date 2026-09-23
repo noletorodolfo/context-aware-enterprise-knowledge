@@ -31,6 +31,21 @@ run() {
 
 printf '%s\n' "$TF_VARS_DEV" >"$root/terraform.tfvars"
 printf '%s\n' "$TF_BACKEND_DEV" >"$root/backend.hcl"
+
+# The tfvars arrive as a secret, so a variable added to the configuration and forgotten in the secret
+# fails inside Terraform, where the message is masked and hard to read. Variable names are not secret:
+# say plainly which ones are missing. The example file is tracked and lists every required name.
+missing=""
+while IFS= read -r name; do
+  if ! grep -qE "^[[:space:]]*${name}[[:space:]]*=" "$root/terraform.tfvars"; then
+    missing="${missing} ${name}"
+  fi
+done < <(sed -n 's/^\([a-z_][a-z0-9_]*\)[[:space:]]*=.*/\1/p' "$root/terraform.tfvars.example" | sort -u)
+if [ -n "$missing" ]; then
+  echo "::error::the TF_VARS_DEV secret is missing:${missing} (update the secret, not only the local file)"
+  exit 1
+fi
+
 quoted_values "$root/terraform.tfvars" | mask
 quoted_values "$root/backend.hcl" | mask
 
