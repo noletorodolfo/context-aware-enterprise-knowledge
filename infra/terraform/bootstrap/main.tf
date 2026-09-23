@@ -191,6 +191,10 @@ resource "azurerm_role_definition" "ci_plan_reader" {
       "Microsoft.Web/sites/config/list/action",
       "Microsoft.Storage/storageAccounts/listKeys/action",
       "Microsoft.OperationalInsights/workspaces/sharedKeys/action",
+      # The search service has key authentication disabled, so these keys cannot be used to reach it;
+      # the provider still reads them when refreshing the resource.
+      "Microsoft.Search/searchServices/listAdminKeys/action",
+      "Microsoft.Search/searchServices/listQueryKeys/action",
     ]
   }
 
