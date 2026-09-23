@@ -20,13 +20,14 @@ permissions for test users A and B.
 
 ## Required administrative roles
 
-| Action                                         | Minimum role                                                    |
-| ---------------------------------------------- | --------------------------------------------------------------- |
-| Bootstrap (storage + role assignment + budget) | Subscription Owner (or Contributor + User Access Administrator) |
-| API app registration                           | Cloud Application Administrator                                 |
-| Admin consent for delegated permissions        | Cloud Application Administrator (validated)                     |
-| Security groups                                | Groups Administrator                                            |
-| Demo site and API access approval (Phase 1)    | SharePoint Administrator                                        |
+| Action                                          | Minimum role                                                                                          |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Bootstrap (storage + role assignment + budget)  | Subscription Owner (or Contributor + User Access Administrator)                                       |
+| API app registration                            | Cloud Application Administrator                                                                       |
+| Admin consent for delegated permissions         | Cloud Application Administrator (validated)                                                           |
+| Admin consent for Graph application permissions | Privileged Role Administrator or Global Administrator (Cloud Application Administrator is not enough) |
+| Security groups                                 | Groups Administrator                                                                                  |
+| Demo site and API access approval (Phase 1)     | SharePoint Administrator                                                                              |
 
 ## 5. Azure CLI and login
 

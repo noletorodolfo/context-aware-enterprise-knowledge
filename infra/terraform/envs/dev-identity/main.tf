@@ -27,9 +27,10 @@ provider "azuread" {
 module "identity" {
   source = "../../modules/identity"
 
-  environment     = "dev"
-  test_user_a_upn = var.test_user_a_upn
-  test_user_b_upn = var.test_user_b_upn
+  environment           = "dev"
+  test_user_a_upn       = var.test_user_a_upn
+  test_user_b_upn       = var.test_user_b_upn
+  grant_graph_app_roles = var.grant_graph_app_roles
 }
 
 # The Azure root (personal subscription) owns the Key Vault certificate; read its public part.

@@ -225,8 +225,12 @@ resource "azuread_service_principal" "ingestion" {
 
 # Admin consent for the application permission. Tenant-wide consent to Sites.Selected still exposes
 # no content until a site grant exists.
+#
+# This is the one grant Cloud Application Administrator cannot give (see grant_graph_app_roles): if a
+# tenant administrator gives it in the portal instead, set that variable to false and Terraform stops
+# managing the assignment rather than failing on it or duplicating it.
 resource "azuread_app_role_assignment" "ingestion_graph" {
-  for_each = var.grant_admin_consent ? toset(local.graph_app_roles) : toset([])
+  for_each = var.grant_graph_app_roles ? toset(local.graph_app_roles) : toset([])
 
   app_role_id         = data.azuread_service_principal.graph.app_role_ids[each.value]
   principal_object_id = azuread_service_principal.ingestion.object_id
