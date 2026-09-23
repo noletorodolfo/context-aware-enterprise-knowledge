@@ -28,6 +28,7 @@ export async function signIn(
   config: E2eConfig,
   loginHint: string,
   cacheFile: URL,
+  scopes: string[] = [config.apiScope],
 ): Promise<string> {
   const pca = new PublicClientApplication({
     auth: {
@@ -42,14 +43,14 @@ export async function signIn(
   );
   if (account) {
     try {
-      return (await pca.acquireTokenSilent({ account, scopes: [config.apiScope] })).accessToken;
+      return (await pca.acquireTokenSilent({ account, scopes })).accessToken;
     } catch {
       /* fall through to interactive */
     }
   }
 
   const result = await pca.acquireTokenInteractive({
-    scopes: [config.apiScope],
+    scopes,
     loginHint,
     prompt: "login",
     openBrowser: async (url) => {
