@@ -3,6 +3,8 @@ import { UpstreamError, withSpan } from "@kb/core";
 export const GRAPH_DELEGATED_SCOPES = [
   "https://graph.microsoft.com/Sites.Read.All",
   "https://graph.microsoft.com/Files.Read.All",
+  // /me/memberOf: the caller's group ids become the ACL filter of the AI Search retriever.
+  "https://graph.microsoft.com/User.Read",
 ];
 
 export type TokenExchanger = (userToken: string, userKey: string) => Promise<string>;
