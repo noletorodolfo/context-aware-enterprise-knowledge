@@ -94,12 +94,12 @@ tenant, so the same three-step dance as Phase 4 applies:
    consent in **Entra ID → Enterprise applications → kb-ingestion-dev → Permissions → Grant admin
    consent** and then set `grant_graph_app_roles = false` in this root's `terraform.tfvars`, so
    Terraform stops managing an assignment it cannot create. The certificate does not exist yet, so its registration is **skipped**
-   and listed in the `pending_certificate_registrations` output. The apply succeeds, which matters:
+   and reported as `ingestion = true` in the `pending_certificate_registrations` output. The apply succeeds, which matters:
    a failed apply does not persist this root's outputs, and the next step reads them.
 2. `terraform -chdir=infra/terraform/envs/dev apply` (through `infra.yml`) — creates the certificate,
    the Function App, the queues and the role assignments.
 3. `terraform -chdir=infra/terraform/envs/dev-identity apply` again — registers the certificate, and
-   `pending_certificate_registrations` comes back empty.
+   every entry of `pending_certificate_registrations` becomes `false`.
 
 Two grants are needed and they are different things: the consent above allows the application
 permission to exist at all, and the grant below is what gives it access to one site. Neither alone

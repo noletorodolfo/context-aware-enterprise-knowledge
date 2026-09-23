@@ -83,10 +83,14 @@ resource "azuread_application_certificate" "ingestion" {
 
 # Applying this root with no certificate available is legitimate (first bring-up) but must not look
 # like a finished job: the output says which registrations are still missing.
+#
+# Booleans, not strings: the pipeline masks every string in this state's outputs, and a value like
+# "ingestion" would then be redacted from every CI log line that happens to contain that word,
+# including the names of variables in error messages.
 output "pending_certificate_registrations" {
-  description = "Applications whose certificate is not registered yet; apply envs/dev, then this root again."
-  value = compact([
-    local.obo_certificate == null ? "knowledge-api (obo)" : "",
-    local.ingestion_certificate == null ? "ingestion" : "",
-  ])
+  description = "True while an application's certificate is not registered; apply envs/dev, then this root again."
+  value = {
+    knowledge_api_obo = local.obo_certificate == null
+    ingestion         = local.ingestion_certificate == null
+  }
 }
