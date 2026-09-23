@@ -139,6 +139,28 @@ describe("computeMetrics", () => {
     expect(metrics.gates.noLeak).toEqual({ passed: true, checked: 1, failures: [] });
   });
 
+  it("records why an answer was refused, so a failing case can be diagnosed", () => {
+    const target = doc("politica-home-office");
+    const cases = [
+      answerable("a1", "politica-home-office"),
+      answerable("a2", "politica-home-office"),
+    ];
+    const metrics = computeMetrics(cases, [
+      ok(
+        "a1",
+        "A",
+        response({
+          refused: true,
+          citations: [],
+          diagnostics: { ...diagnostics([target]), refusalReason: "content-filter" },
+        }),
+      ),
+      ok("a2", "A", response({ refused: true, citations: [], diagnostics: diagnostics([target]) })),
+    ]);
+
+    expect(metrics.cases.map((c) => c.reasons)).toEqual([["refused: content-filter"], ["refused"]]);
+  });
+
   it("fails the no-leak gate when B receives the restricted library, even only in retrieval", () => {
     const cases = [answerable("a1", "politica-home-office")];
     const leaked = doc("tabela-salarial-2026", "RH-Restrito");

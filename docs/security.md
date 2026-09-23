@@ -21,14 +21,14 @@
 
 ## Threat model
 
-| STRIDE category        | Threat                                                             | Primary controls                                                                                                        | Residual risk                                                                  |
-| ---------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Spoofing               | Caller submits a forged or expired token                           | JWT issuer/audience/tenant/expiry validation; Entra ID-issued token only                                                | Compromise of a valid user account remains an identity-provider concern        |
-| Tampering              | Retrieved document instructs the model to ignore policy            | Untrusted delimiters, tag neutralization, system prompt, structured output, grounding and injection tests               | New attack patterns require ongoing evaluation                                 |
-| Repudiation            | An incident cannot be followed end to end                          | W3C trace context, OpenTelemetry spans, correlation code and workbook                                                   | Telemetry intentionally excludes content, limiting forensic detail             |
-| Information disclosure | Restricted document appears in another user's answer               | OBO delegated Graph Search, scope checks, citation grounding and no-leak E2E tests                                      | Search semantics and SharePoint permissions must remain correctly administered |
-| Denial of service      | Graph or model outage, throttling or content filter blocks answers | Typed errors, timeouts, safe refusals and alerting; one retry only for schema-invalid model output                      | Shared model quota can still cause temporary 503 responses                     |
-| Elevation of privilege | CI or runtime gains broad tenant access                            | Separate tenant root, OIDC identities, managed identity, key-scoped Key Vault role and protected deployment environment | The operator retains necessary local administration rights                     |
+| STRIDE category        | Threat                                                             | Primary controls                                                                                                                        | Residual risk                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spoofing               | Caller submits a forged or expired token                           | JWT issuer/audience/tenant/expiry validation; Entra ID-issued token only                                                                | Compromise of a valid user account remains an identity-provider concern                                                                      |
+| Tampering              | Retrieved document instructs the model to ignore policy            | Untrusted delimiters, tag neutralization, system prompt, structured output, grounding and injection tests                               | New attack patterns require ongoing evaluation                                                                                               |
+| Repudiation            | An incident cannot be followed end to end                          | W3C trace context, OpenTelemetry spans, correlation code and workbook                                                                   | Telemetry intentionally excludes content, limiting forensic detail                                                                           |
+| Information disclosure | Restricted document appears in another user's answer               | OBO delegated Graph Search or an ACL-filtered index query, scope checks, citation grounding and no-leak E2E tests under both retrievers | Search semantics and SharePoint permissions must remain correctly administered; the index's copy of the ACL is only as fresh as its last run |
+| Denial of service      | Graph or model outage, throttling or content filter blocks answers | Typed errors, timeouts, safe refusals and alerting; one retry only for schema-invalid model output                                      | Shared model quota can still cause temporary 503 responses                                                                                   |
+| Elevation of privilege | CI or runtime gains broad tenant access                            | Separate tenant root, OIDC identities, managed identity, key-scoped Key Vault role and protected deployment environment                 | The operator retains necessary local administration rights                                                                                   |
 
 ## Controls in depth
 
@@ -71,8 +71,16 @@
   arbitrary intranet.
 - Azure OpenAI content filters and shared quota may produce a safe refusal or a temporary unavailable
   response. They are intentionally not bypassed.
-- The current retriever uses Graph Search and document download at request time. It favors permission
-  correctness over large-corpus latency. Hybrid indexed retrieval is planned for Phase 6.
+- Two retrievers enforce permissions by different means. Graph Search trims at the source and cannot
+  serve stale content, but downloads documents at request time. The hybrid Azure AI Search path
+  filters on Entra group ids copied into the index at indexing time: a group membership revoked after
+  the last run is still honoured for the caller (their live groups are read per request) but a
+  document moved to a more restrictive library is not, until the index is refreshed. That window is
+  why `graph` remains the default until ingestion is event-driven (Phase 7). Indexing fails closed on
+  a library with no configured groups, and a caller with no groups is never queried for.
+- Azure's prompt shield blocks generation for some questions whose retrieved context includes the
+  deliberately injected document, which the assistant reports as a safe refusal. The filtered
+  categories are logged so such a refusal is distinguishable from weak retrieval.
 - SharePoint package publication and SharePoint API permission approval remain manual operator steps.
 - PII masking targets four common Brazilian categories. It is a guardrail, not a complete data-loss
   prevention system.

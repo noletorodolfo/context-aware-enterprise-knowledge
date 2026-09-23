@@ -339,19 +339,27 @@ GIF is added to the repository.
 
 _Buffer: ~0.5 day._
 
-### Phase 6 — Custom semantic search · Should
+### Phase 6 — Custom semantic search · Should · done
 
 - Azure AI Search Free, chunking, embeddings, `AiSearchRetriever` with a security filter by groups.
 - Evaluation comparing Graph Search and AI Search, published in the README.
 - Prompt v2 with metric comparison.
 
+Both retrievers passed every hard gate. Hybrid retrieval ranked marginally better and prompt v2
+changed nothing at all, so `graph` and `v1` remain the defaults and `aisearch` stays selectable until
+ingestion is event-driven. See the [Phase 6 runbook](setup/phase-6.md), [ADR-012](adr/012-hybrid-ai-search-retriever.md)
+and [ADR-013](adr/013-prompt-versioning.md).
+
 ### Phase 7 — Event-driven ingestion · Could
 
 - Webhook, queue, idempotent indexer with delta query, poison queue, subscription renewal, `reindex`.
 
-### Phase 8 — Kubernetes · Could
+### Phase 8 — Kubernetes · Could · intentionally skipped
 
-- Orchestrator container, Helm chart, deploy to `kind`, smoke test in CI.
+Containerizing the orchestrator and deploying it to `kind` would demonstrate packaging, not a
+capability this product lacks: the API already runs serverless with managed identity, and a Helm
+chart in this repository would be scaffolding nobody operates. Dropped in favour of finishing
+Phase 7, where the gap (manual indexing) is real.
 
 ---
 
@@ -377,14 +385,14 @@ Controls: a single **USD 5 budget alert** on the subscription
 
 ## 13. Risks
 
-| Risk                                             | Impact                 | Mitigation                                                                       |
-| ------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------- |
-| Company admin does not approve permissions       | Blocks Phases 1–2      | Request approval in Phase 0; plan B with a developer tenant, if eligible         |
-| GitHub Models rate limit during the demo         | Demo fails             | Automatic fallback to Ollama/mock and video recorded in advance                  |
-| Graph Search returns excerpts that are too short | Weak answers           | Fetch file content for the top-k; Phase 6 resolves it for good                   |
-| Free tier limits of AI Search                    | Index does not fit     | Small, documented synthetic corpus                                               |
-| Changes in the SPFx toolchain                    | Build breaks           | Pin SPFx and Node versions in `.nvmrc` and document them                         |
-| Exposure of company data                         | Legal and reputational | Only synthetic documents in the repo, anonymized screenshots, no content in logs |
+| Risk                                             | Impact                 | Mitigation                                                                        |
+| ------------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------- |
+| Company admin does not approve permissions       | Blocks Phases 1–2      | Request approval in Phase 0; plan B with a developer tenant, if eligible          |
+| GitHub Models rate limit during the demo         | Demo fails             | Automatic fallback to Ollama/mock and video recorded in advance                   |
+| Graph Search returns excerpts that are too short | Weak answers           | Fetch file content for the top-k; hybrid retrieval (Phase 6) serves stored chunks |
+| Free tier limits of AI Search                    | Index does not fit     | Small, documented synthetic corpus                                                |
+| Changes in the SPFx toolchain                    | Build breaks           | Pin SPFx and Node versions in `.nvmrc` and document them                          |
+| Exposure of company data                         | Legal and reputational | Only synthetic documents in the repo, anonymized screenshots, no content in logs  |
 
 ---
 

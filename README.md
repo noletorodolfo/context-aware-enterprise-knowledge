@@ -29,8 +29,9 @@ turning document permissions, prompts, observability or delivery into afterthoug
 
 ## Result baseline
 
-The latest committed real-environment evaluation used prompt `v1`, `gpt-4.1-mini`, judge `judge-v1`
-and 30 Portuguese cases (33 executions). All hard gates passed.
+The latest committed real-environment evaluation used the shipped defaults (Graph Search retrieval and
+prompt `v1`), `gpt-4.1-mini`, judge `judge-v1` and 30 Portuguese cases (33 executions). All hard gates
+passed.
 
 | Measure                        |     Result | Target |
 | ------------------------------ | ---------: | -----: |
@@ -42,10 +43,45 @@ and 30 Portuguese cases (33 executions). All hard gates passed.
 | Citation precision             |     100.0% | >= 90% |
 | Correct refusal                |     100.0% | >= 90% |
 | Groundedness, judge score >= 4 |     100.0% | >= 85% |
-| End-to-end latency p95         |     3.07 s |  < 8 s |
+| End-to-end latency p95         |     4.03 s |  < 8 s |
 
-Read the [full report](eval/reports/2026-09-19.md). The corpus contains eight synthetic documents;
-these measurements are a regression baseline, not a forecast for an enterprise-scale intranet.
+Read the [full report](eval/reports/2026-09-23-graph-v1.md). The corpus contains eight synthetic
+documents; these measurements are a regression baseline, not a forecast for an enterprise-scale
+intranet.
+
+The 8% of answers without a citation are not a retrieval miss: every one of them is a safe refusal
+produced by Azure's prompt shield, which blocks generation when the retrieved context includes the
+document that deliberately carries an injected instruction. Reports record the refusal reason, so the
+distinction is visible rather than assumed.
+
+## Two retrievers, two prompts, one golden set
+
+Retrieval and the prompt are selectable per request for holders of the `Evaluator` role, so both can
+be measured against the same cases on the same corpus. All four runs passed every hard gate with no
+errors.
+
+| Measure                       | Graph / v1 | AI Search / v1 | Graph / v2 | AI Search / v2 |
+| ----------------------------- | ---------: | -------------: | ---------: | -------------: |
+| Retrieval hit rate@3          |     100.0% |         100.0% |     100.0% |         100.0% |
+| MRR                           |      0.980 |          1.000 |      0.980 |          1.000 |
+| Answers with a valid citation |      92.0% |          92.0% |      92.0% |          92.0% |
+| Correct refusal               |     100.0% |         100.0% |     100.0% |         100.0% |
+| Groundedness                  |     100.0% |         100.0% |     100.0% |         100.0% |
+| End-to-end latency p95        |     4.03 s |         3.10 s |     3.84 s |         4.24 s |
+
+Both conclusions are negative, and both are kept:
+
+- **Prompt v2 changed nothing.** It tells the model to answer when an excerpt answers the question
+  even if the wording differs. No case result and no metric moved, under either retriever, so `v1`
+  remains the default and v2 stays in the repository as the measurement that justified not shipping it
+  ([ADR-013](docs/adr/013-prompt-versioning.md)).
+- **Hybrid retrieval ranks marginally better and is still not the default.** MRR 1.000 against 0.980,
+  everything else equal. That does not pay for a retriever whose copy of the permissions is only as
+  fresh as its last indexing run, while indexing is still a manual step. It stays selectable and
+  becomes the candidate default after Phase 7 ([ADR-012](docs/adr/012-hybrid-ai-search-retriever.md)).
+
+Per-variant reports and the three side-by-side comparisons are in [eval/reports/](eval/reports/); the
+[Phase 6 runbook](docs/setup/phase-6.md) explains what only the real corpus revealed.
 
 ## Architecture at a glance
 
@@ -86,7 +122,7 @@ checklist. Any published recording uses synthetic content and anonymized browser
 | [Security](docs/security.md)                     | Threat model, controls, privacy boundary and residual risk                   |
 | [Runbook](docs/runbook.md)                       | Configure, deploy, verify, recover and observe the system                    |
 | [Certification evidence](docs/certifications.md) | Direct links from competency claims to repository evidence                   |
-| [ADRs](docs/adr/)                                | The ten key implementation decisions                                         |
+| [ADRs](docs/adr/)                                | The key implementation decisions                                             |
 | [Project plan](docs/PLAN.md)                     | Completed phases and future roadmap                                          |
 | [Phase runbooks](docs/setup/)                    | Reproducible implementation and verification history                         |
 
@@ -97,9 +133,10 @@ checklist. Any published recording uses synthetic content and anonymized browser
 | `apps/knowledge-api`     | Azure Functions API: validation, OBO, orchestration and telemetry      |
 | `apps/spfx-assistant`    | SharePoint Framework Application Customizer and accessible React panel |
 | `packages/core`          | Domain contracts, citation grounding and tracing helpers               |
-| `packages/retrievers`    | Delegated Microsoft Graph Search retrieval                             |
+| `packages/retrievers`    | Graph Search and hybrid Azure AI Search retrieval, both ACL-filtered   |
 | `packages/governance`    | PII detection and masking                                              |
 | `packages/llm-providers` | Azure OpenAI and deterministic mock providers                          |
+| `tools/indexer`          | Chunks, embeds and reconciles the Azure AI Search index                |
 | `eval`                   | Golden set, runner, LLM judge and committed reports                    |
 | `infra/terraform`        | Bootstrap, tenant identity, Azure runtime and observability modules    |
 | `.github/workflows`      | Verification, reviewed Terraform and API deployment workflows          |
@@ -140,9 +177,11 @@ of the cross-tenant OBO certificate, API deployment, E2E 4/4 and the real evalua
 
 ## Roadmap
 
-Phases 0-5 implement the working, governed Graph Search assistant and its public evidence. The next
-technical increments are intentionally separate: Azure AI Search hybrid retrieval and prompt comparison
-(Phase 6), then event-driven ingestion (Phase 7). See the [full plan](docs/PLAN.md).
+Phases 0-6 implement the working, governed assistant, its public evidence and the measured comparison
+of two retrievers and two prompts. Phase 7 makes ingestion event-driven, which is what would make
+indexed retrieval a safe default. A Kubernetes phase was planned and [intentionally
+dropped](docs/PLAN.md#phase-8--kubernetes--could--intentionally-skipped): it would have demonstrated
+packaging, not a missing capability. See the [full plan](docs/PLAN.md).
 
 ## License
 

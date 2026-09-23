@@ -19,7 +19,10 @@ host or identity value. Detailed, phase-specific commands and evidence remain in
 1. Install Node 22, Terraform and the Azure CLI.
 2. Copy the Terraform `*.tfvars.example` files to ignored local `terraform.tfvars` files and fill
    them with live values. Create ignored backend configuration files for each Terraform root.
-3. Copy `apps/knowledge-api/e2e/e2e.config.example.json` to its ignored local counterpart.
+3. Copy `apps/knowledge-api/e2e/e2e.config.example.json`, `eval/eval.config.example.json` and
+   `tools/indexer/indexer.config.example.json` to their ignored local counterparts. In the indexer
+   configuration, every library key must match the SharePoint document library name exactly,
+   accents included (`Políticas`, not `Politicas`), or indexing stops with "library was not found".
 4. Install dependencies and run the safe checks:
 
 ```bash
@@ -45,16 +48,25 @@ The public repository uses three workflows:
 The actual SharePoint package is built locally using its ignored API configuration and uploaded by the
 operator. That keeps the live Entra app identifier out of public CI artifacts.
 
+`infra.yml` reads its variables from the `TF_VARS_DEV` repository secret, which is a copy of the local
+`terraform.tfvars`. Changing that file locally does not change what the pipeline plans: update the
+secret in the same change, or the run fails on a missing variable. Keep `name_suffixes` on a single
+line, since the masking step redacts every quoted value and a multi-line map becomes unreadable.
+
 After a deployment:
 
 ```bash
+npm run index                                     # only when the corpus or the retriever changed
 npm run test:e2e
-npm run eval
+npm run eval -- --retriever graph --prompt v1
 ```
 
-`test:e2e` proves the permission boundary with two interactive accounts. `eval` runs 30 cases and
-produces a date-stamped report. See [Phase 2](setup/phase-2.md) and [Phase 3](setup/phase-3.md) for
-failure behavior, retry notes and interpretation.
+`test:e2e` proves the permission boundary with two interactive accounts, under both retrievers. `eval`
+runs 30 cases and produces a report named after the date and the variant. `npm run index` rebuilds
+the Azure AI Search index and deletes chunks whose document disappeared; it is required after any
+change to chunking, embeddings or stored fields, because existing chunks keep their old shape. See
+[Phase 2](setup/phase-2.md), [Phase 3](setup/phase-3.md) and [Phase 6](setup/phase-6.md) for failure
+behavior, retry notes and interpretation.
 
 ## Observe and troubleshoot
 
@@ -71,6 +83,8 @@ For availability incidents:
 1. Check the workbook and alert history before changing configuration.
 2. Match a trace code to its content-free `ask.upstream-failed` dimensions.
 3. Treat model content-filter outcomes as a safe refusal, not as an invitation to log prompt content.
+   The `ask.completed` line names the categories that fired (`filteredCategories`), which is enough to
+   tell a prompt-shield block on retrieved content from a quality problem, without any prompt text.
 4. Restore Terraform-owned drift through an approved `infra.yml` run rather than by retaining manual
    configuration edits.
 

@@ -15,3 +15,6 @@ Each ADR records a decision that materially shaped the implemented platform. Sta
 | [008](008-event-driven-ingestion-roadmap.md)       | Event-driven ingestion roadmap              | accepted for future implementation |
 | [009](009-opentelemetry-and-w3c-tracing.md)        | OpenTelemetry and W3C tracing               | accepted                           |
 | [010](010-terraform-and-reviewed-oidc-delivery.md) | Terraform and reviewed OIDC delivery        | accepted                           |
+| [011](011-two-tenants.md)                          | Two tenants, identity separate from infra   | accepted                           |
+| [012](012-hybrid-ai-search-retriever.md)           | Hybrid Azure AI Search retriever            | accepted                           |
+| [013](013-prompt-versioning.md)                    | Versioned prompts, selectable per request   | accepted                           |
