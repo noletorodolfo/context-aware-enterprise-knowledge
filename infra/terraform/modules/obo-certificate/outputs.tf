@@ -45,3 +45,8 @@ output "ingestion_certificate_data_base64" {
 output "ingestion_expires" {
   value = azurerm_key_vault_certificate.ingestion.certificate_attribute[0].expires
 }
+
+output "data_plane_ready" {
+  description = "Depend on this to write to the vault: it completes after the role assignments propagated."
+  value       = time_sleep.certificate_roles_propagation.id
+}

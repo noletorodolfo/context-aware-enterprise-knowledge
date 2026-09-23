@@ -78,14 +78,54 @@ resource "azurerm_role_assignment" "ci_plan_certificates" {
   principal_type       = "ServicePrincipal"
 }
 
+# The vault also holds the ingestion webhook secret (Phase 7). Managing certificates does not imply
+# managing secrets: without these, an apply fails reading the secret it is about to create.
+resource "azurerm_role_assignment" "operator_secrets" {
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.operator_object_id
+}
+
+resource "azurerm_role_assignment" "ci_apply_secrets" {
+  count = var.ci_apply_principal_id == null ? 0 : 1
+
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.ci_apply_principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+# Pull request plans refresh the secret, which reads its value.
+resource "azurerm_role_assignment" "ci_plan_secrets" {
+  count = var.ci_plan_principal_id == null ? 0 : 1
+
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = var.ci_plan_principal_id
+  principal_type       = "ServicePrincipal"
+}
+
 # New Key Vault role assignments take minutes to reach the data plane; creating the certificate right
 # away (a fresh vault, e.g. in the recovery drill) fails with 403 without this pause.
 resource "time_sleep" "certificate_roles_propagation" {
   create_duration = "120s"
 
+  # Re-run the pause whenever the set of data-plane assignments changes: adding a role to an existing
+  # vault has the same propagation delay as a fresh one, and the next write would fail with 403.
+  triggers = {
+    roles = join(",", compact([
+      azurerm_role_assignment.operator_certificates.id,
+      azurerm_role_assignment.operator_secrets.id,
+      try(azurerm_role_assignment.ci_apply_certificates[0].id, ""),
+      try(azurerm_role_assignment.ci_apply_secrets[0].id, ""),
+    ]))
+  }
+
   depends_on = [
     azurerm_role_assignment.operator_certificates,
     azurerm_role_assignment.ci_apply_certificates,
+    azurerm_role_assignment.operator_secrets,
+    azurerm_role_assignment.ci_apply_secrets,
   ]
 }
 
