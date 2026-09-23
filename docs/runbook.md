@@ -99,13 +99,14 @@ npm run reindex      # full rebuild from SharePoint, then clear the delta cursor
 npm run index        # the same rebuild, leaving the cursors alone
 ```
 
-| Symptom                                | First check                                                                   |
-| -------------------------------------- | ----------------------------------------------------------------------------- |
-| A document changed but answers did not | `ingestion.notified` then `ingestion.processed` for that library              |
-| Nothing arrives at all                 | `ingestion.subscriptions-reconciled`: `failures` and `live` counts            |
-| Messages pile up                       | the `document-changed` queue length, then the consumer's failures in the logs |
-| A message keeps failing                | `document-changed-poison`: read the event, fix the cause, then delete it      |
-| The index disagrees with SharePoint    | `npm run reindex`, which reports what it deleted                              |
+| Symptom                                | First check                                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| A document changed but answers did not | `ingestion.notified` then `ingestion.processed` for that library                                                                |
+| Nothing arrives at all                 | `ingestion.subscriptions-reconciled`: `failures` and `live` counts                                                              |
+| Messages pile up                       | the `document-changed` queue length, then the consumer's failures in the logs                                                   |
+| A message keeps failing                | `document-changed-poison`: read the event, fix the cause, then delete it                                                        |
+| The index disagrees with SharePoint    | `npm run reindex`, which reports what it deleted                                                                                |
+| Subscriptions need reconciling now     | restart the ingestion app: `renew` runs on every host start, and Flex Consumption offers no manual trigger for a timer function |
 
 A lapsed subscription costs freshness, not correctness: the renewal run recreates it and the next
 delta query reports what changed meanwhile. Changing the libraries or their groups means changing
