@@ -227,6 +227,9 @@ async function ask(
       ...(upstreamDetail?.innerCode !== undefined
         ? { upstreamInnerCode: upstreamDetail.innerCode }
         : {}),
+      ...(upstreamDetail?.filteredCategories !== undefined
+        ? { filteredCategories: upstreamDetail.filteredCategories }
+        : {}),
       ...(usage ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : {}),
     });
 

@@ -13,7 +13,8 @@ export default defineConfig({
   },
   test: {
     include: ["apps/knowledge-api/e2e/**/*.e2e.test.ts"],
-    testTimeout: 180_000,
+    // Each case asks twice (one per retriever) and may wait out the OpenAI quota between attempts.
+    testTimeout: 300_000,
     hookTimeout: 600_000,
     fileParallelism: false,
   },

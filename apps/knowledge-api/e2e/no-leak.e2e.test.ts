@@ -17,12 +17,15 @@ const RETRIEVERS = ["graph", "aisearch"] as const;
  * quota and this suite asks every question twice, once per retriever. Waiting measures the
  * assistant instead of the quota, exactly like the evaluation runner does. */
 const THROTTLED = 503;
+// Same budget as the evaluation runner: four attempts, 15 s apart, is what the quota needs.
+const ATTEMPTS = 4;
+const DELAY_MS = 15_000;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function ask(token: string, question: string, retriever: string): Promise<Answer> {
   let response = await post(token, question, retriever);
-  for (let attempt = 1; response.status === THROTTLED && attempt <= 3; attempt += 1) {
-    await sleep(attempt * 5000);
+  for (let attempt = 1; response.status === THROTTLED && attempt < ATTEMPTS; attempt += 1) {
+    await sleep(attempt * DELAY_MS);
     response = await post(token, question, retriever);
   }
   expect(response.status).toBe(200);

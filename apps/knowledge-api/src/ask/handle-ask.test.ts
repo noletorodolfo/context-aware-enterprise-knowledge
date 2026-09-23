@@ -275,6 +275,7 @@ describe("handleAsk", () => {
             status: 400,
             code: "content_filter",
             innerCode: "ResponsibleAIPolicyViolation",
+            filteredCategories: "jailbreak",
           }),
         ),
     };
@@ -301,6 +302,7 @@ describe("handleAsk", () => {
         upstreamStatus: 400,
         upstreamCode: "content_filter",
         upstreamInnerCode: "ResponsibleAIPolicyViolation",
+        filteredCategories: "jailbreak",
       },
     });
   });
