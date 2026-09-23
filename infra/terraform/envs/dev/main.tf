@@ -171,6 +171,10 @@ resource "azurerm_role_assignment" "operator_openai" {
 module "ingestion" {
   source = "../../modules/ingestion"
 
+  # It writes the webhook secret into the certificate module's vault, so it must not start before
+  # that vault's data-plane role assignments have propagated.
+  depends_on = [module.obo_certificate]
+
   environment         = "dev"
   resource_group_name = azurerm_resource_group.dev.name
   location            = azurerm_resource_group.dev.location
