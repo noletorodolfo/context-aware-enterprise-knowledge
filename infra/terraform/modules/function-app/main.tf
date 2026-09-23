@@ -121,9 +121,15 @@ resource "azurerm_function_app_flex_consumption" "api" {
   }
 
   app_settings = merge(var.extra_app_settings, {
-    AzureWebJobsStorage__accountName = azurerm_storage_account.host.name
-    TENANT_ID                        = var.tenant_id
-    API_CLIENT_ID                    = var.api_client_id
+    # Identity-based AzureWebJobsStorage needs one endpoint per service, not only the account name:
+    # with the name alone the host fails to authenticate and reports the connection unhealthy, which
+    # also breaks the host keys API. It matters most for non-HTTP triggers, which live in storage.
+    AzureWebJobsStorage__accountName     = azurerm_storage_account.host.name
+    AzureWebJobsStorage__blobServiceUri  = trimsuffix(azurerm_storage_account.host.primary_blob_endpoint, "/")
+    AzureWebJobsStorage__queueServiceUri = trimsuffix(azurerm_storage_account.host.primary_queue_endpoint, "/")
+    AzureWebJobsStorage__tableServiceUri = trimsuffix(azurerm_storage_account.host.primary_table_endpoint, "/")
+    TENANT_ID                            = var.tenant_id
+    API_CLIENT_ID                        = var.api_client_id
   })
 
   tags = var.tags

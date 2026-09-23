@@ -122,10 +122,16 @@ resource "azurerm_function_app_flex_consumption" "this" {
   }
 
   app_settings = {
-    AzureWebJobsStorage__accountName = azurerm_storage_account.this.name
+    # Identity-based connections need one endpoint per service, not only the account name: with the
+    # name alone the host cannot authenticate, which leaves the queue trigger and the timer dead.
+    AzureWebJobsStorage__accountName     = azurerm_storage_account.this.name
+    AzureWebJobsStorage__blobServiceUri  = trimsuffix(azurerm_storage_account.this.primary_blob_endpoint, "/")
+    AzureWebJobsStorage__queueServiceUri = trimsuffix(azurerm_storage_account.this.primary_queue_endpoint, "/")
+    AzureWebJobsStorage__tableServiceUri = trimsuffix(azurerm_storage_account.this.primary_table_endpoint, "/")
+
     # Queue trigger connection, resolved with the managed identity rather than a connection string.
     INGESTION_STORAGE__accountName     = azurerm_storage_account.this.name
-    INGESTION_STORAGE__queueServiceUri = azurerm_storage_account.this.primary_queue_endpoint
+    INGESTION_STORAGE__queueServiceUri = trimsuffix(azurerm_storage_account.this.primary_queue_endpoint, "/")
     INGESTION_STATE_ACCOUNT_URL        = azurerm_storage_account.this.primary_blob_endpoint
     INGESTION_QUEUE_NAME               = azurerm_storage_queue.changes.name
     INGESTION_NOTIFICATION_URL         = local.webhook_url
