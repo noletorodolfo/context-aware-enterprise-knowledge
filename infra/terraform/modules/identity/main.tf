@@ -192,3 +192,43 @@ resource "azuread_service_principal_delegated_permission_grant" "e2e_client_grap
   resource_service_principal_object_id = data.azuread_service_principal.graph.object_id
   claim_values                         = local.graph_delegated_scopes
 }
+
+# Application (app-only) permission for ingestion. Sites.Selected grants nothing by itself: access is
+# granted per site, so this identity can read the demo site and no other content in the tenant. The
+# per-site grant is an operator step (see the Phase 7 runbook), because it is a Graph data-plane call.
+locals {
+  graph_app_roles = ["Sites.Selected"]
+}
+
+resource "azuread_application" "ingestion" {
+  display_name     = "kb-ingestion-${var.environment}"
+  sign_in_audience = "AzureADMyOrg"
+  owners           = local.owners
+
+  required_resource_access {
+    resource_app_id = data.azuread_service_principal.graph.client_id
+
+    dynamic "resource_access" {
+      for_each = local.graph_app_roles
+      content {
+        id   = data.azuread_service_principal.graph.app_role_ids[resource_access.value]
+        type = "Role"
+      }
+    }
+  }
+}
+
+resource "azuread_service_principal" "ingestion" {
+  client_id = azuread_application.ingestion.client_id
+  owners    = local.owners
+}
+
+# Admin consent for the application permission. Tenant-wide consent to Sites.Selected still exposes
+# no content until a site grant exists.
+resource "azuread_app_role_assignment" "ingestion_graph" {
+  for_each = var.grant_admin_consent ? toset(local.graph_app_roles) : toset([])
+
+  app_role_id         = data.azuread_service_principal.graph.app_role_ids[each.value]
+  principal_object_id = azuread_service_principal.ingestion.object_id
+  resource_object_id  = data.azuread_service_principal.graph.object_id
+}

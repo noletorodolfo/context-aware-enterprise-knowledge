@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@kb/core": src("./packages/core/src/index.ts"),
+      "@kb/entra-auth": src("./packages/entra-auth/src/index.ts"),
       "@kb/test-support/auth": src("./test-support/src/auth.ts"),
       "@kb/test-support/e2e-config": src("./test-support/src/e2e-config.ts"),
     },

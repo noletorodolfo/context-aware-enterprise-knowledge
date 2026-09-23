@@ -6,6 +6,11 @@ export interface IndexerConfig {
   embeddingDeployment: string;
   /** SharePoint library name to the Entra group object ids allowed to read it. */
   libraries: Record<string, string[]>;
+  /**
+   * Blob endpoint of the ingestion state account. Only needed by `reindex`, which resets the delta
+   * cursors so the index and the event path describe the same moment.
+   */
+  stateAccountUrl?: string;
 }
 
 const REQUIRED = [

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/noletorodolfo/context-aware-enterprise-knowledge/contracts/events/document-changed.v1.json",
+  "title": "DocumentChanged v1",
+  "description": "A SharePoint document library reported a change. The event names the library, never the document: the consumer asks Graph what changed with a delta query, so a replayed or duplicated event cannot describe stale content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "type", "id", "time", "siteId", "driveId", "library"],
+  "properties": {
+    "specVersion": {
+      "const": "1.0",
+      "description": "Contract version. A consumer rejects what it does not know instead of guessing."
+    },
+    "type": { "const": "kb.document.changed" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deterministic per notification: used to drop duplicates within a visibility window."
+    },
+    "time": { "type": "string", "format": "date-time" },
+    "siteId": { "type": "string", "minLength": 1 },
+    "driveId": { "type": "string", "minLength": 1 },
+    "library": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Document library (drive) name, exactly as SharePoint spells it, accents included."
+    },
+    "subscriptionId": { "type": "string" },
+    "resource": {
+      "type": "string",
+      "description": "Graph resource from the notification, kept for correlation only."
+    }
+  }
+}

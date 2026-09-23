@@ -4,6 +4,7 @@
   "indexName": "kb-chunks-dev",
   "openAiEndpoint": "https://oai-kb-dev-xxxxxx.openai.azure.com/",
   "embeddingDeployment": "embedding",
+  "stateAccountUrl": "https://stkbingestdevxxxxxx.blob.core.windows.net",
   "libraries": {
     "Politicas": ["00000000-0000-0000-0000-000000000000"],
     "TI": ["00000000-0000-0000-0000-000000000000"],

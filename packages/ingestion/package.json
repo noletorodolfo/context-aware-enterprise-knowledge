@@ -1,0 +1,23 @@
+{
+  "name": "@kb/ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chunking, ACL tagging, Graph reading and Azure AI Search reconciliation shared by the operator CLI and the event-driven indexer.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.3",
+    "@kb/core": "0.1.0",
+    "@kb/retrievers": "0.1.0"
+  }
+}

@@ -59,6 +59,8 @@ export function indexDefinition(indexName: string): Record<string, unknown> {
 export interface SearchIndexClient {
   createOrUpdateIndex(): Promise<void>;
   listChunkIds(): Promise<string[]>;
+  /** Chunk ids currently stored for one document, so a single change can be reconciled alone. */
+  listChunkIdsForDocument(docId: string): Promise<string[]>;
   upload(
     chunks: (Omit<SearchChunk, "embeddingInput"> & { contentVector: number[] })[],
   ): Promise<void>;
@@ -109,6 +111,24 @@ export function createSearchIndexClient(options: SearchClientOptions): SearchInd
         if (values.length < 1000) return ids;
         skip += values.length;
       }
+    },
+
+    listChunkIdsForDocument: async (docId) => {
+      const response = await request(
+        `/indexes/${options.indexName}/docs/search?api-version=${API_VERSION}`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            search: "*",
+            // A document id is an opaque Graph id; filtering on it never needs full-text semantics.
+            filter: `docId eq '${docId.replace(/'/g, "''")}'`,
+            select: "id",
+            top: 1000,
+          }),
+        },
+      );
+      const page = (await response.json()) as { value?: { id: string }[] };
+      return (page.value ?? []).map((item) => item.id);
     },
 
     upload: async (chunks) => {

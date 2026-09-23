@@ -5,5 +5,6 @@ package-lock.json
 .terraform
 .superpowers
 apps/knowledge-api/deploy
+apps/indexer/deploy
 apps/spfx-assistant
 eval/reports

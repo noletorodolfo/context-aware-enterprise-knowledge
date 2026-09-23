@@ -8,6 +8,7 @@
   "exclude": ["src/**/*.test.ts"],
   "references": [
     { "path": "../../packages/core" },
+    { "path": "../../packages/entra-auth" },
     { "path": "../../packages/governance" },
     { "path": "../../packages/llm-providers" },
     { "path": "../../packages/retrievers" }

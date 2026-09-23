@@ -1,0 +1,30 @@
+{
+  "name": "@kb/indexer-functions",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Event-driven ingestion: SharePoint change notifications, queue consumer with delta query, and subscription renewal.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "package": "node scripts/package.mjs"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.16.4",
+    "@azure/functions-opentelemetry-instrumentation": "^0.3.0",
+    "@azure/identity": "^4.13.3",
+    "@azure/keyvault-keys": "^4.10.2",
+    "@azure/monitor-opentelemetry": "^1.20.0",
+    "@azure/storage-blob": "^12.28.0",
+    "@azure/storage-queue": "^12.27.0",
+    "@kb/core": "0.1.0",
+    "@kb/entra-auth": "0.1.0",
+    "@kb/ingestion": "0.1.0",
+    "@kb/llm-providers": "0.1.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.222.0",
+    "@opentelemetry/instrumentation": "^0.222.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

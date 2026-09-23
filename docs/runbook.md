@@ -39,11 +39,12 @@ and [Phase 4](setup/phase-4.md). Do not place live configuration in issues, pull
 
 The public repository uses three workflows:
 
-| Workflow     | Trigger                                     | Result                                                                      |
-| ------------ | ------------------------------------------- | --------------------------------------------------------------------------- |
-| `ci.yml`     | Pull request and `main`                     | checks, mock evaluation, SPFx package build and Terraform static validation |
-| `infra.yml`  | Azure-runtime Terraform changes or dispatch | value-free PR plan; protected approved apply                                |
-| `deploy.yml` | API/package/prompt change or dispatch       | protected API package deployment and unauthenticated 401 smoke test         |
+| Workflow             | Trigger                                               | Result                                                                       |
+| -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `ci.yml`             | Pull request and `main`                               | checks, mock evaluation, SPFx package build and Terraform static validation  |
+| `infra.yml`          | Azure-runtime Terraform changes or dispatch           | value-free PR plan; protected approved apply                                 |
+| `deploy.yml`         | API/package/prompt change or dispatch                 | protected API package deployment and unauthenticated 401 smoke test          |
+| `deploy-indexer.yml` | Ingestion app, package or contract change or dispatch | protected ingestion deployment and a webhook validation-handshake smoke test |
 
 The actual SharePoint package is built locally using its ignored API configuration and uploaded by the
 operator. That keeps the live Entra app identifier out of public CI artifacts.
@@ -87,6 +88,29 @@ For availability incidents:
    tell a prompt-shield block on retrieved content from a quality problem, without any prompt text.
 4. Restore Terraform-owned drift through an approved `infra.yml` run rather than by retaining manual
    configuration edits.
+
+## Operate the ingestion path
+
+Ingestion needs no command in normal operation: a SharePoint change becomes a queue message and the
+consumer applies it. What an operator does is check it and, rarely, rebuild.
+
+```bash
+npm run reindex      # full rebuild from SharePoint, then clear the delta cursors
+npm run index        # the same rebuild, leaving the cursors alone
+```
+
+| Symptom                                | First check                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| A document changed but answers did not | `ingestion.notified` then `ingestion.processed` for that library              |
+| Nothing arrives at all                 | `ingestion.subscriptions-reconciled`: `failures` and `live` counts            |
+| Messages pile up                       | the `document-changed` queue length, then the consumer's failures in the logs |
+| A message keeps failing                | `document-changed-poison`: read the event, fix the cause, then delete it      |
+| The index disagrees with SharePoint    | `npm run reindex`, which reports what it deleted                              |
+
+A lapsed subscription costs freshness, not correctness: the renewal run recreates it and the next
+delta query reports what changed meanwhile. Changing the libraries or their groups means changing
+`ingestion_library_acl` in the Terraform variables **and** the `TF_VARS_DEV` secret, then applying;
+the renewal run then creates or deletes subscriptions to match.
 
 ## Recover the Azure runtime
 

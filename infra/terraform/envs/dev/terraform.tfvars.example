@@ -9,6 +9,7 @@ name_suffixes = {
   openai       = "def456"
   key_vault    = "ghi789"
   search       = "jkl012"
+  ingestion    = "mno345"
 }
 state_resource_group_name  = "rg-kb-tfstate"
 state_storage_account_name = "stkbtfstatexxxxxx"
@@ -16,3 +17,7 @@ state_storage_account_name = "stkbtfstatexxxxxx"
 # ci_plan_principal_id  = "00000000-0000-0000-0000-000000000000"
 # ci_apply_principal_id = "00000000-0000-0000-0000-000000000000"
 alert_email = "you@example.com"
+# Phase 7: the site the ingestion service watches, and the Entra groups allowed to read each library.
+# Library names must match SharePoint exactly, accents included, or indexing fails closed.
+ingestion_site_url = "https://contoso.sharepoint.com/sites/kb-demo"
+ingestion_library_acl = { "Politicas" = ["00000000-0000-0000-0000-000000000000"], "TI" = ["00000000-0000-0000-0000-000000000000"], "RH-Restrito" = ["00000000-0000-0000-0000-000000000000"] }

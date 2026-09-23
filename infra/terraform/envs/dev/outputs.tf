@@ -37,3 +37,23 @@ output "search_endpoint" {
 output "search_index_name" {
   value = var.search_index_name
 }
+
+output "ingestion_certificate" {
+  description = "Public part of the ingestion certificate, registered on the app by envs/dev-identity."
+  value = {
+    data_base64 = module.obo_certificate.ingestion_certificate_data_base64
+    end_date    = module.obo_certificate.ingestion_expires
+  }
+}
+
+output "ingestion_webhook_url" {
+  value = module.ingestion.webhook_url
+}
+
+output "ingestion_function_app_name" {
+  value = module.ingestion.function_app_name
+}
+
+output "ingestion_principal_id" {
+  value = module.ingestion.principal_id
+}

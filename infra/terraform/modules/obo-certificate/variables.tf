@@ -19,6 +19,11 @@ variable "subject_name" {
   type        = string
 }
 
+variable "ingestion_subject_name" {
+  description = "Certificate subject CN for the ingestion application, e.g. kb-ingestion-dev."
+  type        = string
+}
+
 variable "name_suffix" {
   description = "Fixed 6-character suffix that makes global names unique (kept stable across recreations)."
   type        = string
