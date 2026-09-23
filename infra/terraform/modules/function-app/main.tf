@@ -129,9 +129,29 @@ resource "azurerm_function_app_flex_consumption" "api" {
   tags = var.tags
 }
 
-# The host reads/writes its storage and deployment package with its managed identity.
+# The host reads/writes its storage and deployment package with its managed identity. It also needs
+# queues and tables: with the blob role alone the host still works but reports AzureWebJobsStorage as
+# unhealthy, which is noise in every health check.
+locals {
+  host_storage_roles = {
+    blob  = "Storage Blob Data Owner"
+    queue = "Storage Queue Data Contributor"
+    table = "Storage Table Data Contributor"
+  }
+}
+
+# The blob assignment already exists; adopt it instead of destroying and recreating it, which can
+# race with the create and fail on "role assignment already exists".
+moved {
+  from = azurerm_role_assignment.host_storage
+  to   = azurerm_role_assignment.host_storage["blob"]
+}
+
 resource "azurerm_role_assignment" "host_storage" {
+  for_each = local.host_storage_roles
+
   scope                = azurerm_storage_account.host.id
-  role_definition_name = "Storage Blob Data Owner"
+  role_definition_name = each.value
   principal_id         = azurerm_function_app_flex_consumption.api.identity[0].principal_id
+  principal_type       = "ServicePrincipal"
 }

@@ -7,6 +7,7 @@
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"],
   "references": [
+    { "path": "../../packages/ingestion" },
     { "path": "../../packages/llm-providers" },
     { "path": "../../packages/retrievers" },
     { "path": "../../test-support" }

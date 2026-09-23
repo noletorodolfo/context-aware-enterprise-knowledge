@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { installTestTelemetry, type TestTelemetry } from "@kb/test-support/otel";
-import { createClientAssertion } from "./client-assertion.js";
+import { createClientAssertion } from "@kb/entra-auth";
 import { GRAPH_DELEGATED_SCOPES, createOboExchanger } from "./obo.js";
 
 const tokenResponse = () =>

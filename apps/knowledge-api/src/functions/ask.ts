@@ -10,7 +10,7 @@ import {
 import { AiSearchRetriever, GraphSearchRetriever, createGroupMembership } from "@kb/retrievers";
 import systemPromptV1 from "../../../../prompts/v1.md";
 import systemPromptV2 from "../../../../prompts/v2.md";
-import { createClientAssertion, keyVaultSigner } from "../auth/client-assertion.js";
+import { createClientAssertion, keyVaultSigner } from "@kb/entra-auth";
 import { GRAPH_DELEGATED_SCOPES, createOboExchanger } from "../auth/obo.js";
 import { createTokenValidator, entraJwks } from "../auth/token-validator.js";
 import { handleAsk, type AskLogger } from "../ask/handle-ask.js";

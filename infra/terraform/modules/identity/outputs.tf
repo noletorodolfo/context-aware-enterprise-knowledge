@@ -31,3 +31,17 @@ output "e2e_client_id" {
 output "evaluator_role_id" {
   value = random_uuid.evaluator_role.result
 }
+
+output "ingestion_client_id" {
+  value = azuread_application.ingestion.client_id
+}
+
+output "ingestion_application_id" {
+  description = "Resource ID of the ingestion application (for its certificate credential)."
+  value       = azuread_application.ingestion.id
+}
+
+output "ingestion_service_principal_object_id" {
+  description = "Object ID used when granting this identity access to a specific site."
+  value       = azuread_service_principal.ingestion.object_id
+}

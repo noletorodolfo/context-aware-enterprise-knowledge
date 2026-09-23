@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@azure/identity": "^4.13.3",
+    "@azure/storage-blob": "^12.28.0",
+    "@kb/ingestion": "0.1.0",
     "@kb/llm-providers": "0.1.0",
     "@kb/retrievers": "0.1.0",
     "@kb/test-support": "0.1.0"

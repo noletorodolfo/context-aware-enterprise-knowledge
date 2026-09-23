@@ -139,7 +139,7 @@ checklist. Any published recording uses synthetic content and anonymized browser
 | `tools/indexer`          | Chunks, embeds and reconciles the Azure AI Search index                |
 | `eval`                   | Golden set, runner, LLM judge and committed reports                    |
 | `infra/terraform`        | Bootstrap, tenant identity, Azure runtime and observability modules    |
-| `.github/workflows`      | Verification, reviewed Terraform and API deployment workflows          |
+| `.github/workflows`      | Verification, reviewed Terraform and the two deployment workflows      |
 | `samples/documents`      | Synthetic Portuguese documents and security test cases                 |
 
 ## Run it
@@ -178,8 +178,9 @@ of the cross-tenant OBO certificate, API deployment, E2E 4/4 and the real evalua
 ## Roadmap
 
 Phases 0-6 implement the working, governed assistant, its public evidence and the measured comparison
-of two retrievers and two prompts. Phase 7 makes ingestion event-driven, which is what would make
-indexed retrieval a safe default. A Kubernetes phase was planned and [intentionally
+of two retrievers and two prompts. Phase 7 makes ingestion event-driven: a SharePoint change reaches
+the index through a versioned event, a queue and an idempotent consumer, which is what turns indexed
+retrieval into a defensible default. A Kubernetes phase was planned and [intentionally
 dropped](docs/PLAN.md#phase-8--kubernetes--could--intentionally-skipped): it would have demonstrated
 packaging, not a missing capability. See the [full plan](docs/PLAN.md).
 

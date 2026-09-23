@@ -12,6 +12,7 @@
     "tools/*",
     "test-support",
     "apps/knowledge-api",
+    "apps/indexer",
     "eval"
   ],
   "scripts": {
@@ -20,6 +21,7 @@
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "index": "tsc -b && node tools/indexer/dist/cli.js",
+    "reindex": "npm run index -- --reset-delta",
     "eval": "tsc -b && node eval/dist/cli.js",
     "eval:mock": "npm run eval -- --mock",
     "eval:compare": "tsc -b && node eval/dist/compare-cli.js",

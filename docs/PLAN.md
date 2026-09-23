@@ -350,9 +350,14 @@ changed nothing at all, so `graph` and `v1` remain the defaults and `aisearch` s
 ingestion is event-driven. See the [Phase 6 runbook](setup/phase-6.md), [ADR-012](adr/012-hybrid-ai-search-retriever.md)
 and [ADR-013](adr/013-prompt-versioning.md).
 
-### Phase 7 — Event-driven ingestion · Could
+### Phase 7 — Event-driven ingestion · Could · done
 
 - Webhook, queue, idempotent indexer with delta query, poison queue, subscription renewal, `reindex`.
+
+Built as designed, with one addition the design did not foresee: two events for the same drive would
+have consumed each other's changes, so the consumer holds a blob lease on the drive's cursor for the
+whole pass. Ingestion runs app-only under its own identity with `Sites.Selected` granted on one site
+([ADR-014](adr/014-app-only-ingestion-identity.md)); see the [Phase 7 runbook](setup/phase-7.md).
 
 ### Phase 8 — Kubernetes · Could · intentionally skipped
 

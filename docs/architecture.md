@@ -46,6 +46,7 @@ flowchart TB
     Core[Core package<br/>contracts + grounding + tracing]
     Graph[Microsoft Graph Search + content]
     Search[Azure AI Search<br/>ACL-filtered hybrid index]
+    Ingest[Ingestion app<br/>webhook, queue, delta]
     KeyVault[Key Vault<br/>non-exportable signing key]
     LLM[Azure OpenAI]
     Telemetry[Application Insights]
@@ -58,6 +59,8 @@ flowchart TB
     Api --> Core
     Retriever -->|OBO delegated token| Graph
     Hybrid -->|managed identity, filtered by caller's groups| Search
+    Ingest -->|app-only, Sites.Selected on one site| Graph
+    Ingest -->|only writer of the index| Search
     Hybrid -->|OBO delegated token, group lookup| Graph
     Api -->|certificate assertion signing| KeyVault
     Provider -->|managed identity| LLM
@@ -67,7 +70,9 @@ flowchart TB
 The monorepo keeps the boundaries explicit: `apps/knowledge-api` orchestrates requests,
 `apps/spfx-assistant` hosts the UI, `packages/governance` masks input, `packages/retrievers` holds
 both retrievers, `packages/llm-providers` calls the model, and `packages/core` owns shared contracts.
-`tools/indexer` is an operator-run job, not part of the request path.
+`apps/indexer` keeps SharePoint changes flowing into the index and `packages/ingestion` holds the logic
+it shares with the operator CLI in `tools/indexer`. Neither is part of the request path: a question is
+answered without them, and they cannot answer a question.
 
 ## Request flow
 
@@ -139,6 +144,21 @@ evaluation corpus has eight synthetic documents and is deliberately small, which
 retriever comparison can show: with thirty chunks in the index, a hybrid query returns most of the
 corpus whatever the question, so ranking differences are compressed and irrelevant chunks reach the
 prompt more easily than they would at scale ([Phase 6 runbook](setup/phase-6.md)).
+
+## Ingestion path
+
+A SharePoint change notification reaches an anonymous webhook, authenticated by the subscription's
+`clientState`, which publishes a versioned `DocumentChanged` event to a Storage queue. The consumer
+asks Graph what actually changed with a delta query, writes the affected chunks and advances the
+cursor only afterwards. The event names a library, never a document, so a replayed or duplicated event
+costs a re-read and can never describe stale content. Failures return to the queue and, after five
+attempts, to a poison queue.
+
+This is a second consistency boundary, and the honest way to describe it is eventual: the index lags
+SharePoint by however long a notification, a queue hop and a delta query take, and it lags further if
+subscriptions lapse. That is exactly why the Graph retriever, which cannot be stale, remains the
+default ([ADR-012](adr/012-hybrid-ai-search-retriever.md)). The details are in the
+[Phase 7 runbook](setup/phase-7.md) and [ADR-014](adr/014-app-only-ingestion-identity.md).
 
 ## Related decisions
 

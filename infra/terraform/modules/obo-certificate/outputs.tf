@@ -24,3 +24,24 @@ output "certificate_data_base64" {
 output "expires" {
   value = azurerm_key_vault_certificate.obo.certificate_attribute[0].expires
 }
+
+output "ingestion_key_id" {
+  description = "Versionless key URL the ingestion service signs its client assertion with."
+  value       = "${azurerm_key_vault.this.vault_uri}keys/${azurerm_key_vault_certificate.ingestion.name}"
+}
+
+output "ingestion_key_role_scope" {
+  value = "${azurerm_key_vault.this.id}/keys/${azurerm_key_vault_certificate.ingestion.name}"
+}
+
+output "ingestion_thumbprint" {
+  value = azurerm_key_vault_certificate.ingestion.thumbprint
+}
+
+output "ingestion_certificate_data_base64" {
+  value = azurerm_key_vault_certificate.ingestion.certificate_data_base64
+}
+
+output "ingestion_expires" {
+  value = azurerm_key_vault_certificate.ingestion.certificate_attribute[0].expires
+}

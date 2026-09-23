@@ -1,16 +1,25 @@
 // Rebuilds the Azure AI Search index from the SharePoint libraries (operator command).
+// With --reset-delta it also clears the ingestion delta cursors, so the event-driven path and the
+// index describe the same moment instead of resuming from a token taken before the rebuild.
 // Reads documents with the operator's delegated Graph token, so it never sees more than user A can.
 // Prints counts only: no document text, no identifiers.
 import { readFileSync } from "node:fs";
 import { AzureCliCredential } from "@azure/identity";
+import { BlobServiceClient } from "@azure/storage-blob";
 import { signIn } from "@kb/test-support/auth";
 import { loadE2eConfig, tokenCacheFile } from "@kb/test-support/e2e-config";
-import { aclGroupsFor, validateIndexerConfig, type IndexerConfig } from "./acl.js";
-import { buildChunks, type IndexedDocument } from "./chunks.js";
 import { createEmbedder } from "@kb/llm-providers";
-import { readLibraries } from "./graph.js";
-import { batch, reconcile } from "./reconcile.js";
-import { createSearchIndexClient } from "./search-client.js";
+import {
+  aclGroupsFor,
+  batch,
+  buildChunks,
+  createSearchIndexClient,
+  readLibraries,
+  reconcile,
+  validateIndexerConfig,
+  type IndexedDocument,
+  type IndexerConfig,
+} from "@kb/ingestion";
 
 const EMBEDDING_BATCH = 16;
 const UPLOAD_BATCH = 100;
@@ -80,10 +89,39 @@ async function main(): Promise<void> {
   for (const group of batch(documentsToUpload, UPLOAD_BATCH)) await client.upload(group);
   for (const group of batch(plan.delete, UPLOAD_BATCH)) await client.remove(group);
 
+  const cleared = process.argv.includes("--reset-delta")
+    ? await resetDeltaTokens(config, credential)
+    : null;
+
   console.log(
     `Indexed ${documents.length} documents, ${chunks.length} chunks; ` +
-      `${plan.delete.length} stale chunks deleted, ${skipped} files skipped.`,
+      `${plan.delete.length} stale chunks deleted, ${skipped} files skipped.` +
+      (cleared === null ? "" : ` ${cleared} delta cursors cleared.`),
   );
+}
+
+/**
+ * Clears the stored delta tokens. The next notification then does one full pass per drive, which is
+ * wasteful but never wrong; leaving an older token is also correct, because applying a change twice
+ * writes the same rows. Resetting is about the two halves of the derived state agreeing.
+ */
+async function resetDeltaTokens(
+  config: IndexerConfig,
+  credential: AzureCliCredential,
+): Promise<number> {
+  if (!config.stateAccountUrl) {
+    throw new Error("indexer.config.json: --reset-delta needs stateAccountUrl");
+  }
+  const container = new BlobServiceClient(config.stateAccountUrl, credential).getContainerClient(
+    "ingestion-state",
+  );
+  if (!(await container.exists())) return 0;
+  let cleared = 0;
+  for await (const blob of container.listBlobsFlat({ prefix: "delta/" })) {
+    await container.getBlockBlobClient(blob.name).deleteIfExists();
+    cleared += 1;
+  }
+  return cleared;
 }
 
 main().catch((error: unknown) => {

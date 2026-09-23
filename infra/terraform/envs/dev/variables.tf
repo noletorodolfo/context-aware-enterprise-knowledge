@@ -66,7 +66,18 @@ variable "name_suffixes" {
     openai       = string
     key_vault    = string
     search       = string
+    ingestion    = string
   })
+}
+
+variable "ingestion_site_url" {
+  description = "SharePoint site whose libraries the ingestion service watches."
+  type        = string
+}
+
+variable "ingestion_library_acl" {
+  description = "Entra group object ids allowed to read each library, by library name (exact SharePoint spelling, accents included)."
+  type        = map(list(string))
 }
 
 variable "search_backend" {

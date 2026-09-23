@@ -46,7 +46,8 @@ data "terraform_remote_state" "azure" {
 }
 
 locals {
-  obo_certificate = try(data.terraform_remote_state.azure.outputs.obo_certificate, null)
+  obo_certificate       = try(data.terraform_remote_state.azure.outputs.obo_certificate, null)
+  ingestion_certificate = try(data.terraform_remote_state.azure.outputs.ingestion_certificate, null)
 }
 
 # The API app registration trusts the Key Vault certificate for client assertions. After the Azure root
@@ -62,6 +63,22 @@ resource "azuread_application_certificate" "knowledge_api_obo" {
     precondition {
       condition     = local.obo_certificate != null
       error_message = "Apply envs/dev first: its obo_certificate output is missing."
+    }
+  }
+}
+
+# The ingestion application trusts its own Key Vault certificate for the app-only client assertion.
+resource "azuread_application_certificate" "ingestion" {
+  application_id = module.identity.ingestion_application_id
+  type           = "AsymmetricX509Cert"
+  encoding       = "base64"
+  value          = local.ingestion_certificate.data_base64
+  end_date       = local.ingestion_certificate.end_date
+
+  lifecycle {
+    precondition {
+      condition     = local.ingestion_certificate != null
+      error_message = "Apply envs/dev first: its ingestion_certificate output is missing."
     }
   }
 }

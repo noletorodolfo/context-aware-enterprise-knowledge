@@ -65,6 +65,15 @@
 - An Application Insights workbook and error-rate alert detect availability problems without collecting
   document content.
 
+## Ingestion path (Phase 7)
+
+| Threat                 | Scenario                                                        | Control                                                                                                                         | Residual risk                                                                        |
+| ---------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Spoofing               | Anyone posts a forged change notification to the public webhook | Subscription `clientState` from Key Vault, 64 random characters, compared without an early return; rejected counts in telemetry | A leaked `clientState` allows forged notifications, whose only effect is a re-read   |
+| Elevation of privilege | The ingestion identity reads content it was never meant to      | Application permission is `Sites.Selected`, granted on the demo site alone; separate registration and certificate from the API  | A site grant is a manual step, so a wrong grant is a human error with real reach     |
+| Tampering              | Wrong ACL group ids are written into the index                  | Ingestion is the only writer; a library with no configured groups fails closed at indexing time, in the CLI and in the Function | The index mirrors the ACL as configured, not as SharePoint enforces it               |
+| Repudiation            | A change is silently lost                                       | The delta cursor advances only after the changes are applied; failures return to the queue and then to a poison queue           | A poisoned message needs an operator to look at it; there is no alert on queue depth |
+
 ## Known limitations and residual risks
 
 - The demo corpus is synthetic and small; its quality baseline cannot prove production quality on an

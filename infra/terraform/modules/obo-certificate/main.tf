@@ -1,5 +1,6 @@
-# Key Vault holding the certificate the Knowledge API uses to prove its identity in the
-# On-Behalf-Of exchange. The private key is non-exportable: callers can only ask Key Vault to sign.
+# Key Vault holding the certificates this system proves its identity with: the On-Behalf-Of exchange
+# of the Knowledge API and, since Phase 7, the app-only grant of the ingestion service. Both private
+# keys are non-exportable: callers can only ask Key Vault to sign.
 
 terraform {
   required_version = ">= 1.9"
@@ -121,6 +122,50 @@ resource "azurerm_key_vault_certificate" "obo" {
 
     x509_certificate_properties {
       subject            = "CN=${var.subject_name}"
+      validity_in_months = 12
+      key_usage          = ["digitalSignature"]
+      extended_key_usage = ["1.3.6.1.5.5.7.3.2"]
+    }
+  }
+
+  depends_on = [time_sleep.certificate_roles_propagation]
+}
+
+# The ingestion service proves the same way the API does, with its own certificate: one compromised
+# assertion must not be usable for the other application.
+# tflint-ignore: azurerm_resources_missing_prevent_destroy # recreated on purpose in the recovery drill (Phase 4 D6)
+resource "azurerm_key_vault_certificate" "ingestion" {
+  name         = "ingestion-${var.environment}"
+  key_vault_id = azurerm_key_vault.this.id
+
+  certificate_policy {
+    issuer_parameters {
+      name = "Self"
+    }
+
+    key_properties {
+      exportable = false
+      key_size   = 2048
+      key_type   = "RSA"
+      reuse_key  = false
+    }
+
+    lifetime_action {
+      action {
+        action_type = "AutoRenew"
+      }
+
+      trigger {
+        days_before_expiry = 30
+      }
+    }
+
+    secret_properties {
+      content_type = "application/x-pkcs12"
+    }
+
+    x509_certificate_properties {
+      subject            = "CN=${var.ingestion_subject_name}"
       validity_in_months = 12
       key_usage          = ["digitalSignature"]
       extended_key_usage = ["1.3.6.1.5.5.7.3.2"]

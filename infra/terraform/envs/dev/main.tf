@@ -69,12 +69,13 @@ resource "azurerm_resource_group" "dev" {
 module "obo_certificate" {
   source = "../../modules/obo-certificate"
 
-  environment         = "dev"
-  resource_group_name = azurerm_resource_group.dev.name
-  location            = azurerm_resource_group.dev.location
-  tags                = local.tags
-  subject_name        = "kb-knowledge-api-dev-obo"
-  name_suffix         = var.name_suffixes.key_vault
+  environment            = "dev"
+  resource_group_name    = azurerm_resource_group.dev.name
+  location               = azurerm_resource_group.dev.location
+  tags                   = local.tags
+  subject_name           = "kb-knowledge-api-dev-obo"
+  ingestion_subject_name = "kb-ingestion-dev"
+  name_suffix            = var.name_suffixes.key_vault
 
   operator_object_id    = var.operator_object_id
   ci_apply_principal_id = var.ci_apply_principal_id
@@ -163,4 +164,37 @@ resource "azurerm_role_assignment" "operator_openai" {
   scope                = module.openai.account_id
   role_definition_name = "Cognitive Services OpenAI User"
   principal_id         = var.operator_object_id
+}
+
+# Phase 7: event-driven ingestion. Its identity is the only one allowed to write to the index, and it
+# reads SharePoint app-only with Sites.Selected granted on the demo site alone.
+module "ingestion" {
+  source = "../../modules/ingestion"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.dev.name
+  location            = azurerm_resource_group.dev.location
+  tags                = local.tags
+  name_suffix         = var.name_suffixes.ingestion
+  tenant_id           = var.tenant_id
+  operator_object_id  = var.operator_object_id
+
+  ingestion_client_id    = data.terraform_remote_state.identity.outputs.ingestion_client_id
+  cert_thumbprint        = module.obo_certificate.ingestion_thumbprint
+  key_vault_id           = module.obo_certificate.key_vault_id
+  signing_key_id         = module.obo_certificate.ingestion_key_id
+  signing_key_role_scope = module.obo_certificate.ingestion_key_role_scope
+
+  site_url    = var.ingestion_site_url
+  library_acl = var.ingestion_library_acl
+
+  search_endpoint   = module.search.endpoint
+  search_service_id = module.search.service_id
+  search_index_name = var.search_index_name
+
+  openai_endpoint             = module.openai.endpoint
+  openai_account_id           = module.openai.account_id
+  openai_embedding_deployment = module.openai.embedding_deployment_name
+
+  application_insights_connection_string = module.function_app.application_insights_connection_string
 }

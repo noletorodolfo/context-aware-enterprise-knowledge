@@ -35,6 +35,7 @@ apps/spfx-assistant/sharepoint/assets/elements.xml
 # Azure Functions
 local.settings.json
 apps/knowledge-api/deploy/
+apps/indexer/deploy/
 
 # End-to-end test local configuration and token caches
 apps/knowledge-api/e2e/e2e.config.json

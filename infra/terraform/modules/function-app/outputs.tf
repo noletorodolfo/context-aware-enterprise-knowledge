@@ -18,3 +18,9 @@ output "application_insights_id" {
 output "log_analytics_workspace_id" {
   value = azurerm_log_analytics_workspace.this.id
 }
+
+output "application_insights_connection_string" {
+  description = "Shared with the ingestion app so one workspace shows both services."
+  value       = azurerm_application_insights.this.connection_string
+  sensitive   = true
+}

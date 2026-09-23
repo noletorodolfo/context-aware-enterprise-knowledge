@@ -1,0 +1,65 @@
+# Deploys the ingestion app (webhook, queue consumer, subscription renewal) after the owner approves
+# the "dev" environment. Separate from deploy.yml because it is a separate Function App with a
+# separate identity: a change to the API must not redeploy ingestion, or the other way round.
+name: deploy-indexer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/indexer/**
+      - packages/**
+      - contracts/**
+      - package-lock.json
+      - .github/workflows/deploy-indexer.yml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy-indexer-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Build the deployment package
+        run: |
+          npm ci
+          npm run package -w @kb/indexer-functions
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_APPLY }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Publish to the Function App
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656 # v1.5.7
+        with:
+          app-name: ${{ secrets.INGESTION_FUNCTION_APP_NAME }}
+          package: apps/indexer/deploy
+          sku: flexconsumption
+          remote-build: false
+      - name: Smoke test (the webhook must answer the Graph validation handshake)
+        env:
+          INGESTION_FUNCTION_APP_NAME: ${{ secrets.INGESTION_FUNCTION_APP_NAME }}
+        run: |
+          token="ci-$(date +%s)"
+          for attempt in 1 2 3 4 5; do
+            body=$(curl -s -X POST \
+              "https://${INGESTION_FUNCTION_APP_NAME}.azurewebsites.net/api/ingestion/notifications?validationToken=${token}" || true)
+            echo "attempt ${attempt}: ${#body} bytes"
+            [ "$body" = "$token" ] && exit 0
+            sleep 20
+          done
+          echo "::error::the webhook did not echo the validation token"
+          exit 1
