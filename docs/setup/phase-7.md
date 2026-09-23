@@ -87,13 +87,23 @@ The certificate lives in the subscription tenant and the application registratio
 tenant, so the same three-step dance as Phase 4 applies:
 
 1. `terraform -chdir=infra/terraform/envs/dev-identity apply` — creates the ingestion application and
-   consents to `Sites.Selected`. The certificate does not exist yet, so its registration is **skipped**
+   consents to `Sites.Selected`. **This consent needs Privileged Role Administrator or Global
+   Administrator**: Microsoft excludes Graph application permissions from what Cloud Application
+   Administrator may consent to, so the apply fails there with `Authorization_RequestDenied` if the
+   operator only holds that role. Either get the role, or have a tenant administrator grant the
+   consent in **Entra ID → Enterprise applications → kb-ingestion-dev → Permissions → Grant admin
+   consent** and then set `grant_graph_app_roles = false` in this root's `terraform.tfvars`, so
+   Terraform stops managing an assignment it cannot create. The certificate does not exist yet, so its registration is **skipped**
    and listed in the `pending_certificate_registrations` output. The apply succeeds, which matters:
    a failed apply does not persist this root's outputs, and the next step reads them.
 2. `terraform -chdir=infra/terraform/envs/dev apply` (through `infra.yml`) — creates the certificate,
    the Function App, the queues and the role assignments.
 3. `terraform -chdir=infra/terraform/envs/dev-identity apply` again — registers the certificate, and
    `pending_certificate_registrations` comes back empty.
+
+Two grants are needed and they are different things: the consent above allows the application
+permission to exist at all, and the grant below is what gives it access to one site. Neither alone
+lets the service read anything.
 
 Then, once per site, grant the identity access to it. This is a Graph data-plane call, not something
 Terraform models:

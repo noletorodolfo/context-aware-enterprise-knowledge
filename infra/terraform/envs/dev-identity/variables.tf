@@ -25,3 +25,9 @@ variable "state_container_name" {
   type    = string
   default = "tfstate"
 }
+
+variable "grant_graph_app_roles" {
+  description = "False when a tenant administrator consented to the Graph application permissions outside Terraform."
+  type        = bool
+  default     = true
+}

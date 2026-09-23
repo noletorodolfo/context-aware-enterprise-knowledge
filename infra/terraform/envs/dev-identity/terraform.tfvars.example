@@ -3,3 +3,6 @@ test_user_a_upn            = "kb.test.a@contoso.com"
 test_user_b_upn            = "kb.test.b@contoso.com"
 state_resource_group_name  = "rg-kb-tfstate"
 state_storage_account_name = "stkbtfstatexxxxxx"
+# Set to false if a tenant administrator granted the Graph application permissions in the portal:
+# Cloud Application Administrator cannot grant Graph app roles.
+# grant_graph_app_roles = false
