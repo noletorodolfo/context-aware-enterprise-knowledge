@@ -32,7 +32,8 @@ data "azuread_service_principal" "graph" {
 locals {
   owners = [data.azuread_client_config.current.object_id]
   # Delegated: Graph Search only returns what the user themselves can already open.
-  graph_delegated_scopes = ["Files.Read.All", "Sites.Read.All"]
+  # User.Read also allows /me/memberOf, which gives the AI Search retriever the caller's group ids.
+  graph_delegated_scopes = ["Files.Read.All", "Sites.Read.All", "User.Read"]
 }
 
 resource "random_uuid" "user_impersonation" {}

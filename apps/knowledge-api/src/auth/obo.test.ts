@@ -49,7 +49,7 @@ describe("createOboExchanger", () => {
     expect(body?.get("assertion")).toBe("user-token");
     expect(body?.get("requested_token_use")).toBe("on_behalf_of");
     expect(body?.get("scope")).toBe(
-      "https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All",
+      "https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/User.Read",
     );
   });
 

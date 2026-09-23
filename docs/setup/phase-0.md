@@ -100,7 +100,7 @@ terraform apply
 ```
 
 Expected result: app `kb-knowledge-api-dev` with the `user_impersonation` scope, consent for
-`Files.Read.All` and `Sites.Read.All` (delegated), and the groups `kb-demo-colaboradores` (A, B) and `kb-demo-rh` (A).
+`Files.Read.All`, `Sites.Read.All` and `User.Read` (delegated), and the groups `kb-demo-colaboradores` (A, B) and `kb-demo-rh` (A).
 
 > If you already created an app registration manually before, it can be removed: this one becomes the official one.
 
