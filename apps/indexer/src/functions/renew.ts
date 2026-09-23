@@ -105,4 +105,14 @@ export async function renew(_timer: Timer, context: InvocationContext): Promise<
   );
 }
 
-app.timer("renew", { schedule: "0 0 */6 * * *", runOnStartup: false, handler: renew });
+/**
+ * Also on startup, which is what makes ingestion self-healing: a deployment, a restart or the first
+ * cold start reconciles the subscriptions instead of waiting up to six hours. It is safe to run
+ * often because it is idempotent — it creates what is missing, extends what is near expiry and
+ * leaves the rest alone — and because the Functions host serializes timer executions with a lock,
+ * so scaling out does not produce two runs creating the same subscription.
+ *
+ * It is also the only way to run it on demand: the host keys API that `/admin/functions/...` needs
+ * is not available on Flex Consumption, so there is no manual trigger to fall back on.
+ */
+app.timer("renew", { schedule: "0 0 */6 * * *", runOnStartup: true, handler: renew });

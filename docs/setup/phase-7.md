@@ -127,9 +127,14 @@ Finally:
   so `deploy-indexer.yml` knows where to publish.
 - Approve the `dev` environment for `deploy-indexer`.
 
-The subscriptions themselves need no manual step: the renewal timer creates whatever is missing. It
-runs every six hours, so to start immediately, run the `renew` function once from the portal
-(**Code + Test → Test/Run**) and check its log line for `created`.
+The subscriptions themselves need no manual step: the `renew` function creates whatever is missing,
+and it runs **on every host start** as well as every six hours. Deploying the app is therefore what
+brings the subscriptions up, and a restart is enough to reconcile them again. Check the
+`ingestion.subscriptions-reconciled` log line for `created` and `failures`.
+
+There is no manual trigger to fall back on: the host keys API that `/admin/functions/<name>` needs
+returns `InternalServerError from host runtime` on Flex Consumption, so running a timer function on
+demand is not available. Running it at startup is what replaces that.
 
 ## Operating it
 
