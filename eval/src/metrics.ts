@@ -237,7 +237,13 @@ export function computeMetrics(cases: GoldenCase[], executions: Execution[]): Me
       }
       counts.citation.total += 1;
       if (!response.refused && response.citations.length > 0) counts.citation.yes += 1;
-      else reasons.push(response.refused ? "refused" : "no citation");
+      // The refusal reason is what makes a failing case diagnosable: a refusal because no excerpt
+      // was relevant is a retrieval problem, one from the content filter is not.
+      else if (!response.refused) reasons.push("no citation");
+      else {
+        const why = response.diagnostics?.refusalReason;
+        reasons.push(why ? `refused: ${why}` : "refused");
+      }
       for (const citation of response.citations) {
         counts.precision.total += 1;
         if (goldenCase.expectedDocuments.some((name) => refersTo(citation.url, name))) {
