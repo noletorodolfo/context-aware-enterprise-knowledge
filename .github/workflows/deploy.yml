@@ -48,6 +48,8 @@ jobs:
           package: apps/knowledge-api/deploy
           sku: flexconsumption
           remote-build: false
+      - name: Assert the host storage connection is identity-based
+        run: bash scripts/assert-identity-storage.sh rg-kb-dev "${{ secrets.FUNCTION_APP_NAME }}"
       - name: Smoke test (no token must be rejected with 401)
         env:
           FUNCTION_APP_NAME: ${{ secrets.FUNCTION_APP_NAME }}

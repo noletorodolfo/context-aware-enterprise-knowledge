@@ -1,4 +1,5 @@
 export { aclGroupsFor, validateIndexerConfig } from "./acl.js";
+export { assertDistinctLibraryNames, findByLibraryName, libraryKey } from "./library-name.js";
 export type { IndexerConfig } from "./acl.js";
 export { buildChunks, chunkId } from "./chunks.js";
 export type { IndexedDocument, SearchChunk } from "./chunks.js";

@@ -1,3 +1,4 @@
+import { libraryKey } from "@kb/ingestion";
 import { clientStateFingerprint, type Drive, type SubscriptionRecord } from "./handlers/renewal.js";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -69,9 +70,12 @@ export function createSubscriptionClient(options: SubscriptionClientOptions): Su
         `/sites/${site.id}/drives`,
       );
       return libraries.map((library) => {
-        const drive = drives.value.find((candidate) => candidate.name === library);
+        const drive = drives.value.find(
+          (candidate) => libraryKey(candidate.name) === libraryKey(library),
+        );
         if (!drive) throw new Error(`Library "${library}" was not found on the site`);
-        return { driveId: drive.id, library, siteId: site.id };
+        // The drive's own spelling is what the events and the index carry, not the configured one.
+        return { driveId: drive.id, library: drive.name, siteId: site.id };
       });
     },
 

@@ -49,6 +49,8 @@ jobs:
           package: apps/indexer/deploy
           sku: flexconsumption
           remote-build: false
+      - name: Assert the host storage connection is identity-based
+        run: bash scripts/assert-identity-storage.sh rg-kb-dev "${{ secrets.INGESTION_FUNCTION_APP_NAME }}"
       - name: Smoke test (the webhook must answer the Graph validation handshake)
         env:
           INGESTION_FUNCTION_APP_NAME: ${{ secrets.INGESTION_FUNCTION_APP_NAME }}
