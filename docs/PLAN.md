@@ -354,9 +354,10 @@ and [ADR-013](adr/013-prompt-versioning.md).
 
 - Webhook, queue, idempotent indexer with delta query, poison queue, subscription renewal, `reindex`.
 
-Built as designed, with one addition the design did not foresee: two events for the same drive would
-have consumed each other's changes, so the consumer holds a blob lease on the drive's cursor for the
-whole pass. Ingestion runs app-only under its own identity with `Sites.Selected` granted on one site
+Built as designed and verified against the real tenant: an uploaded document reached the index with no
+command run, and deleting it removed exactly its chunks on an incremental pass. One addition the design
+did not foresee: two events for the same drive would have consumed each other's changes, so the
+consumer holds a blob lease on the drive's cursor for the whole pass. Ingestion runs app-only under its own identity with `Sites.Selected` granted on one site
 ([ADR-014](adr/014-app-only-ingestion-identity.md)); see the [Phase 7 runbook](setup/phase-7.md).
 
 ### Phase 8 — Kubernetes · Could · intentionally skipped

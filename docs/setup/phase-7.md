@@ -6,19 +6,30 @@ look at instead of disappearing.
 
 ## Checklist
 
-| #   | Item                                                                   | Where  | Status                     |
-| --- | ---------------------------------------------------------------------- | ------ | -------------------------- |
-| 1   | Versioned event contract (`contracts/events/document-changed.v1.json`) | Repo   | ✅                         |
-| 2   | Idempotent application of changes, deletions included                  | Repo   | ✅                         |
-| 3   | Delta query per drive with a stored, leased cursor                     | Repo   | ✅                         |
-| 4   | Webhook, queue consumer and renewal timer as a separate Function App   | Repo   | ✅                         |
-| 5   | `npm run reindex` rebuilds the index and resets the cursors            | Local  | ✅                         |
-| 6   | App-only ingestion identity: `Sites.Selected`, certificate assertion   | Tenant | ⏳ applied by the operator |
-| 7   | Queues, roles and Function App created; package deployed               | Azure  | ⏳ applied by the pipeline |
-| 8   | A real edit in SharePoint reaches the index; a deletion removes it     | Tenant | ⏳ verify after 6 and 7    |
+| #   | Item                                                                   | Where  | Status |
+| --- | ---------------------------------------------------------------------- | ------ | ------ |
+| 1   | Versioned event contract (`contracts/events/document-changed.v1.json`) | Repo   | ✅     |
+| 2   | Idempotent application of changes, deletions included                  | Repo   | ✅     |
+| 3   | Delta query per drive with a stored, leased cursor                     | Repo   | ✅     |
+| 4   | Webhook, queue consumer and renewal timer as a separate Function App   | Repo   | ✅     |
+| 5   | `npm run reindex` rebuilds the index and resets the cursors            | Local  | ✅     |
+| 6   | App-only ingestion identity: `Sites.Selected`, certificate assertion   | Tenant | ✅     |
+| 7   | Queues, roles and Function App created; package deployed               | Azure  | ✅     |
+| 8   | A real edit in SharePoint reaches the index; a deletion removes it     | Tenant | ✅     |
 
-The repository is complete and the behaviour is covered by tests; rows 6 to 8 need the operator steps
-below, and this document records their result once they are done.
+Row 8 was verified against the real tenant, not asserted:
+
+```
+ingestion.subscriptions-reconciled  created:3 renewed:0 recreated:0 removed:0 live:3 failures:0
+ingestion.notified                  accepted:1 rejectedClientState:0 rejectedUnknownDrive:0
+ingestion.processed                 library:Politicas changes:4 documentsIndexed:4 chunksUploaded:13 fullPass:true
+ingestion.processed                 library:Politicas changes:1 documentsRemoved:1 chunksDeleted:1 fullPass:false
+```
+
+A document uploaded to a library reached the index with no command run (31 chunks, 9 documents), and
+deleting it removed exactly its chunks (30 chunks, 8 documents). The second pass reports
+`fullPass: false`, so it used the stored cursor: the first pass read the whole drive because no cursor
+existed yet.
 
 ## How it fits together
 
@@ -161,6 +172,28 @@ reads every library as the operator, rewrites every chunk, deletes what no longe
 clears the delta cursors so the index and the event path describe the same moment. It needs
 `stateAccountUrl` in `tools/indexer/indexer.config.json`; `npm run index` does the same rebuild
 without touching the cursors.
+
+## Three traps this phase cost, all worth naming
+
+**A key-based `AzureWebJobsStorage` silently kills every non-HTTP trigger.** Both apps were created
+with a plain `AzureWebJobsStorage` whose connection string had an empty `AccountKey`, because the
+storage account has shared keys disabled. That setting wins over the identity-based
+`AzureWebJobsStorage__*` ones, so the host authenticated with nothing: it never created its
+`azure-webjobs-*` containers, the host keys API answered `InternalServerError`, and the queue consumer
+and the timer could never run — while the HTTP webhook kept answering 200 and the deployment kept
+reporting success. `scripts/assert-identity-storage.sh` runs after every deploy so this cannot return
+unnoticed, and an identity-based connection needs all three service endpoints, not only `__accountName`.
+
+**HTTP and non-HTTP triggers run on separate instances.** The log of an HTTP instance shows `renew`
+with a `NoOpListener`, so `runOnStartup` there fires nothing: the timer runs when the platform starts
+the non-HTTP instance. On demand, `POST /admin/functions/renew` with the host key works — but only
+once the host can reach its storage, since that is where the keys live.
+
+**An accented library name has to survive every hop.** `Políticas` passed through a Terraform
+variable, a GitHub secret, a shell and an app setting, and one hop reading UTF-8 as a single-byte
+encoding turned it into `PolÃ­ticas`. Nothing failed loudly: the library simply stopped resolving.
+Library names are now matched ignoring accents and case, so the configuration can be plain ASCII, and
+two names that would collapse to the same key are refused instead of silently sharing permissions.
 
 ## What this does not do
 

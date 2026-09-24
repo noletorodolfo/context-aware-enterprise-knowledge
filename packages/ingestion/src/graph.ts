@@ -1,4 +1,5 @@
 import { extractSections, type Section } from "@kb/retrievers";
+import { libraryKey } from "./library-name.js";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
@@ -68,7 +69,9 @@ export async function readLibraries(
   let skipped = 0;
 
   for (const library of libraries) {
-    const drive = drives.value.find((candidate) => candidate.name === library);
+    const drive = drives.value.find(
+      (candidate) => libraryKey(candidate.name) === libraryKey(library),
+    );
     if (!drive) throw new Error(`Library "${library}" was not found on the site`);
 
     const children = await graph<{ value: DriveItem[] }>(
