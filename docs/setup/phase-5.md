@@ -5,14 +5,14 @@ Microsoft 365 environment. It does not change Azure resources or SharePoint conf
 
 ## Checklist
 
-| #   | Item                                                                    | Status                             |
-| --- | ----------------------------------------------------------------------- | ---------------------------------- |
-| 1   | Product README with outcome, evidence, architecture and roadmap         | complete                           |
-| 2   | Architecture, security, operations and certification evidence documents | complete                           |
-| 3   | ADRs 001-010                                                            | complete                           |
-| 4   | Public-data and link review                                             | complete before merge              |
-| 5   | Two-minute recording                                                    | operator action                    |
-| 6   | Optional README GIF or external video link                              | operator action after media review |
+| #   | Item                                                                    | Status                |
+| --- | ----------------------------------------------------------------------- | --------------------- |
+| 1   | Product README with outcome, evidence, architecture and roadmap         | complete              |
+| 2   | Architecture, security, operations and certification evidence documents | complete              |
+| 3   | ADRs 001-010                                                            | complete              |
+| 4   | Public-data and link review                                             | complete before merge |
+| 5   | Two-minute recording                                                    | complete              |
+| 6   | Recording reviewed frame by frame, redacted and published               | complete              |
 
 ## Two-minute recording script
 
@@ -47,8 +47,30 @@ After recording:
 2. Pause on every transition and check for hostnames, account names, opaque IDs, email addresses,
    timestamps, browser history and notification previews.
 3. Crop or blur a frame rather than relying on a spoken disclaimer.
-4. Host the final video outside the repository (for example, an unlisted video platform) and add its
-   README link only after this review.
+4. Host the final video outside the git history — a GitHub release asset keeps the link stable without
+   putting a binary in every clone — and add its README link only after this review.
+
+### What the review found in the published recording
+
+The review is not a formality: the first cut of this recording exposed the tenant hostname in the
+browser address bar. It was measured rather than eyeballed, by sampling the address-bar band of every
+frame and flagging the ones with a dark bar and light glyphs:
+
+| Version  | Frames with a readable URL | Interval          |
+| -------- | -------------------------- | ----------------- |
+| original | 154                        | 55.12 s - 74.25 s |
+| redacted | 0                          | -                 |
+
+The fix was a solid black box over the top 100 px for that interval only — solid rather than blurred,
+because a blur can sometimes be reversed and a box cannot:
+
+```bash
+ffmpeg -i recording.mp4   -vf "drawbox=x=0:y=0:w=iw:h=100:color=black@1.0:t=fill:enable='between(t,54.5,75.0)'"   -c:v libx264 -crf 21 -preset medium -pix_fmt yuv420p -movflags +faststart   -c:a copy -map_metadata -1 demo.mp4
+```
+
+`-map_metadata -1` drops the editor's metadata as well. Re-encoding also took the file from 78 MB to
+10 MB, since screen capture rarely needs the bitrate a camera does. The unredacted original stays on
+the operator's machine: `videos/` is git-ignored precisely so it cannot be committed by accident.
 
 ## Optional GIF
 

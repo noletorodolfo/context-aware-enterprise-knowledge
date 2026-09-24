@@ -333,9 +333,9 @@ Goal: all **Must** items done within 7 days. Should and Could come later, with n
 owner and published only after a frame-by-frame anonymity review, because every live frame shows the
 partner tenant. The README, architecture, security model, operational
 runbook, certification evidence and ADRs are public and linked to implementation evidence. The
-two-minute recording remains an operator-managed publication step: it must be captured from synthetic
-examples and pass the frame-by-frame anonymity checklist in `docs/setup/phase-5.md` before any link or
-GIF is added to the repository.
+two-minute recording was captured from synthetic examples, reviewed frame by frame, redacted where the
+review found the tenant hostname in the address bar, and published as a release asset rather than
+committed. What the review found is recorded in `docs/setup/phase-5.md`.
 
 _Buffer: ~0.5 day._
 

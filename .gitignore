@@ -45,3 +45,7 @@ apps/knowledge-api/e2e/.token-cache-*.json
 eval/eval.config.json
 tools/indexer/indexer.config.json
 eval/reports/*-mock.*
+
+# Demo recordings: large binaries that must pass the media-redaction checklist before publication,
+# and they are published as release assets rather than committed (docs/setup/phase-5.md).
+videos/
