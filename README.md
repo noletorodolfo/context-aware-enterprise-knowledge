@@ -104,6 +104,8 @@ and residual risks; [ADRs](docs/adr/) record the decisions.
 
 ## Demonstration
 
+**[Watch the two-minute demo](https://github.com/noletorodolfo/context-aware-enterprise-knowledge/releases/latest/download/context-aware-enterprise-knowledge-demo.mp4)** (MP4, 10 MB, no narration of live data).
+
 The recording script is deliberately short and repeatable:
 
 1. Ask a public policy question and open its source citation.
@@ -111,8 +113,9 @@ The recording script is deliberately short and repeatable:
 3. Show the golden-set report and a single distributed trace.
 4. Show the green delivery pipeline and a value-free Terraform plan summary.
 
-The [Phase 5 runbook](docs/setup/phase-5.md) contains the two-minute script and a media-redaction
-checklist. Any published recording uses synthetic content and anonymized browser frames only.
+The [Phase 5 runbook](docs/setup/phase-5.md) contains the script and the media-redaction checklist,
+including what the frame-by-frame review of this recording found and how it was fixed. The published
+video uses synthetic documents and redacted browser frames only.
 
 ## Documentation map
 
